@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}Supplier Quarantine & SNCR Hub - Zapuza Quality OS{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between mb-4 border-bottom pb-3">
+    <div>
+        <h2 class="h3 fw-bold mb-1 text-dark">
+            <i class="bi bi-exclamation-octagon text-danger me-2"></i>Supplier Quarantine & SNCR Hub
+        </h2>
+        <span class="text-muted small">
+            BRD Section 3.3: Material rejection, Supplier Non-Conformance Reports (SNCR), and physical quarantine tracking.
+        </span>
+    </div>
+    <div>
+        <span class="badge bg-danger fs-6 px-3 py-2">
+            <i class="bi bi-lock-fill me-1"></i> Quarantine Lock Active
+        </span>
+    </div>
+</div>
+
+<!-- Active Quarantined Lots Banner -->
+<div class="card shadow-sm border-danger mb-4">
+    <div class="card-header bg-danger text-white py-3 fw-bold d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-shield-slash-fill me-2"></i>Currently Quarantined Material Lots (Locked from Work Orders)</span>
+        <span class="badge bg-white text-danger">{{ quarantined_lots.count }} Active Holds</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 small">
+            <thead class="table-light">
+                <tr>
+                    <th>Lot Number</th>
+                    <th>Heat Number</th>
+                    <th>Grade</th>
+                    <th>Supplier</th>
+                    <th>Quantity</th>
+                    <th>Quarantine Reason</th>
+                    <th class="text-end">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for q in quarantined_lots %}
+                <tr class="table-danger">
+                    <td><strong class="font-monospace text-danger">{{ q.lot_number }}</strong></td>
+                    <td><span class="badge bg-dark font-monospace">{{ q.heat_number }}</span></td>
+                    <td>{{ q.material_grade.code }}</td>
+                    <td>{{ q.supplier_name }}</td>
+                    <td>{{ q.quantity_received }} {{ q.get_unit_display }}</td>
+                    <td>
+                        {% if q.ncrs.first %}
+                            <span class="badge bg-danger">{{ q.ncrs.first.get_reason_category_display }}</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Manual Hold</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        <a href="{% url 'inventory:intake_detail' pk=q.pk %}" class="btn btn-sm btn-outline-danger">
+                            View Pedigree
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center text-muted py-3">No active supplier quarantine holds. Factory floor is clear.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- All Supplier NCRs Table -->
+<div class="card shadow-sm border-0">
+    <div class="card-header bg-white py-3 fw-bold">
+        <i class="bi bi-journal-text text-primary me-2"></i>Historical Supplier Non-Conformance Reports
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover table-industrial align-middle mb-0 small">
+            <thead>
+                <tr>
+                    <th>SNCR Number</th>
+                    <th>Intake Lot</th>
+                    <th>Heat Number</th>
+                    <th>Reason Category</th>
+                    <th>Disposition</th>
+                    <th>Logged By</th>
+                    <th>Date</th>
+                    <th class="text-end">Details</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ncr in ncrs %}
+                <tr>
+                    <td><strong class="font-monospace text-danger">{{ ncr.sncr_number }}</strong></td>
+                    <td><strong class="font-monospace">{{ ncr.intake.lot_number }}</strong></td>
+                    <td><span class="badge bg-light text-dark border">{{ ncr.intake.heat_number }}</span></td>
+                    <td>{{ ncr.get_reason_category_display }}</td>
+                    <td><span class="badge bg-dark">{{ ncr.get_disposition_display }}</span></td>
+                    <td>{{ ncr.logged_by.employee_id }}</td>
+                    <td class="text-nowrap">{{ ncr.created_at|date:"Y-m-d H:i" }}</td>
+                    <td class="text-end">
+                        <a href="{% url 'inventory:intake_detail' pk=ncr.intake.pk %}" class="btn btn-sm btn-outline-primary">
+                            View Lot
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="text-center text-muted py-4">No supplier non-conformance reports registered.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

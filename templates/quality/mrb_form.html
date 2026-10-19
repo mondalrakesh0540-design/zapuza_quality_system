@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block title %}Execute MRB Disposition - Zapuza Quality OS{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-9">
+        <div class="d-flex align-items-center justify-content-between mb-4 border-bottom pb-3">
+            <div>
+                <h2 class="h3 fw-bold mb-1 text-dark">
+                    <i class="bi bi-shield-shaded text-danger me-2"></i>Material Review Board (MRB) Disposition
+                </h2>
+                <span class="text-muted small">
+                    BRD Section 6.3: Formal engineering disposition for 
+                    {% if target_type == 'traveler' %}
+                        Job Traveler <strong>{{ target.traveler_barcode }}</strong>
+                    {% else %}
+                        Raw Material Lot <strong>{{ target.lot_number }}</strong>
+                    {% endif %}
+                </span>
+            </div>
+            <a href="{% url 'quality:mrb_queue' %}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1"></i> Back to MRB Queue
+            </a>
+        </div>
+
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-danger text-white py-2">
+                <div class="small fw-bold text-uppercase"><i class="bi bi-exclamation-triangle-fill me-2"></i>Quarantine Status & Material Details</div>
+            </div>
+            <div class="card-body p-3 bg-light">
+                <div class="row g-2 small">
+                    {% if target_type == 'traveler' %}
+                    <div class="col-md-3">
+                        <div class="text-muted">Traveler:</div>
+                        <div class="fw-bold font-monospace text-danger">{{ target.traveler_barcode }}</div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-muted">Part Number:</div>
+                        <div class="fw-bold">{{ target.work_order.part.part_number }}</div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-muted">Work Order:</div>
+                        <div class="fw-bold font-monospace">{{ target.work_order.work_order_number }} (Qty: {{ target.work_order.target_quantity }})</div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-muted">Heat Number:</div>
+                        <div class="fw-bold font-monospace">Heat #{{ target.work_order.raw_material_lot.heat_number }}</div>
+                    </div>
+                    {% else %}
+                    <div class="col-md-3">
+                        <div class="text-muted">Intake Lot ID:</div>
+                        <div class="fw-bold font-monospace text-danger">{{ target.lot_number }}</div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-muted">Heat Number:</div>
+                        <div class="fw-bold font-monospace">{{ target.heat_number }}</div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-muted">Material Grade:</div>
+                        <div class="fw-bold">{{ target.material_grade.code }}</div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-muted">Supplier:</div>
+                        <div class="fw-bold">{{ target.supplier_name }}</div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Disposition Action Form -->
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-4">
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-uppercase">1. Select MRB Disposition Decision: <span class="text-danger">*</span></label>
+                        <select name="disposition_type" id="dispTypeSelect" class="form-select form-select-lg" required onchange="toggleMRBFields()">
+                            <option value="">-- Choose MRB Formal Decision --</option>
+                            {% for code, label in disposition_types %}
+                            <option value="{{ code }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-uppercase">2. Defect Description & Non-Conformance Mode: <span class="text-danger">*</span></label>
+                        <textarea name="defect_description" class="form-control" rows="2" required placeholder="e.g. Journal diameter measured Ø35.080mm (0.060mm oversize); surface finish Ra 1.2 exceeds Ra 0.8 MAX requirement."></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-uppercase">3. Engineering Justification & Root Cause Analysis: <span class="text-danger">*</span></label>
+                        <textarea name="engineering_justification" class="form-control" rows="2" required placeholder="e.g. Tool wear on insert corner radius during Op 20 finish pass. Stock has sufficient grinding allowance to clean up to drawing spec."></textarea>
+                    </div>
+
+                    <!-- Dynamic Sub-sections based on disposition type -->
+                    <div id="reworkFields" class="p-3 bg-warning bg-opacity-10 border border-warning rounded mb-3" style="display: none;">
+                        <h6 class="fw-bold text-dark"><i class="bi bi-tools me-2 text-warning"></i>Rework Order Routing Instructions</h6>
+                        <p class="small text-muted mb-2">Specifies exact corrective machining, polishing, or benching steps. A dedicated Rework Job Traveler will be automatically initialized.</p>
+                        <textarea name="rework_instructions" class="form-control" rows="2" placeholder="e.g. Mount on manual lathe #02, skim journal diameter by 0.050mm, deburr and re-inspect 100% on CMM."></textarea>
+                    </div>
+
+                    <div id="scrapFields" class="p-3 bg-danger bg-opacity-10 border border-danger rounded mb-3" style="display: none;">
+                        <h6 class="fw-bold text-danger"><i class="bi bi-trash3 me-2"></i>Scrap Disposition & Accounting Write-Off</h6>
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">General Ledger Scrap Cost Code:</label>
+                                <input type="text" name="scrap_cost_code" class="form-control" placeholder="e.g. SCRAP-DEF-402">
+                            </div>
+                            <div class="col-md-6 d-flex align-items-center pt-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="scrapBinCheck" name="scrap_verified_at_bin">
+                                    <label class="form-check-label small fw-bold text-dark" for="scrapBinCheck">
+                                        Physically verified batch deposited into scrap holding bin
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="rtvFields" class="p-3 bg-secondary bg-opacity-10 border border-secondary rounded mb-3" style="display: none;">
+                        <h6 class="fw-bold text-dark"><i class="bi bi-arrow-return-left me-2"></i>Return to Vendor (RTV) & Debit Note</h6>
+                        <label class="form-label small fw-bold">Supplier Debit Note Reference No:</label>
+                        <input type="text" name="debit_note_number" class="form-control" placeholder="e.g. DN-SUP-2026-881">
+                    </div>
+
+                    <div id="concessionFields" class="p-3 bg-info bg-opacity-10 border border-info rounded mb-3" style="display: none;">
+                        <h6 class="fw-bold text-dark"><i class="bi bi-file-earmark-arrow-up me-2 text-info"></i>Customer Written Concession Document</h6>
+                        <p class="small text-muted mb-2">Mandatory customer deviation authorization letter (PDF or scan). Uploading unlocks traveler quarantine hold.</p>
+                        <input type="file" name="customer_approval_doc" class="form-control" accept=".pdf,.png,.jpg,.jpeg">
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center border-top pt-3">
+                        <a href="{% url 'quality:mrb_queue' %}" class="btn btn-outline-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-danger btn-lg px-4">
+                            <i class="bi bi-check2-circle me-1"></i> Authorize MRB Disposition Decision
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleMRBFields() {
+    var val = document.getElementById('dispTypeSelect').value;
+    document.getElementById('reworkFields').style.display = (val === 'REWORK') ? 'block' : 'none';
+    document.getElementById('scrapFields').style.display = (val === 'SCRAP') ? 'block' : 'none';
+    document.getElementById('rtvFields').style.display = (val === 'RTV') ? 'block' : 'none';
+    document.getElementById('concessionFields').style.display = (val === 'CUSTOMER_CONCESSION') ? 'block' : 'none';
+}
+</script>
+{% endblock %}

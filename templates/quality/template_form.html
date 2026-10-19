@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}Create Checklist Template - Zapuza Quality OS{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard:index' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'quality:template_list' %}">Checklist Studio</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Create Template</li>
+    </ol>
+</nav>
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow-lg border-0 rounded-3">
+            <div class="card-header bg-dark text-white p-4" style="background-color: #0f2c59 !important;">
+                <h4 class="fw-bold mb-0"><i class="bi bi-file-earmark-plus me-2"></i>Create Inspection Checklist Template</h4>
+                <small class="text-white-50">BRD Section 4.1: Engineering Drawing Setup & Checklists</small>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST">
+                    {% csrf_token %}
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="template_code" class="form-label fw-bold text-uppercase small text-muted">Template Code *</label>
+                            <input type="text" name="template_code" id="template_code" class="form-control font-monospace text-uppercase" placeholder="e.g. TPL-SH401-PDI" required autofocus>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="revision_label" class="form-label fw-bold text-uppercase small text-muted">Initial Revision *</label>
+                            <input type="text" name="revision_label" id="revision_label" class="form-control font-monospace" value="Rev A" required>
+                        </div>
+
+                        <div class="col-md-12">
+                            <label for="title" class="form-label fw-bold text-uppercase small text-muted">Template Title *</label>
+                            <input type="text" name="title" id="title" class="form-control" placeholder="e.g. Pre-Dispatch Inspection Plan - Drive Shaft" required>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="part" class="form-label fw-bold text-uppercase small text-muted">Manufactured Component Part *</label>
+                            <select name="part" id="part" class="form-select" required>
+                                <option value="">-- Select Component Part --</option>
+                                {% for p in parts %}
+                                    <option value="{{ p.id }}">{{ p.part_number }} - {{ p.part_name }} ({{ p.revision_level }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="template_type" class="form-label fw-bold text-uppercase small text-muted">Checklist Type *</label>
+                            <select name="template_type" id="template_type" class="form-select" required>
+                                {% for code, label in template_types %}
+                                    <option value="{{ code }}">{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-3 mt-4 pt-3 border-top">
+                        <a href="{% url 'quality:template_list' %}" class="btn btn-outline-secondary w-50">Cancel</a>
+                        <button type="submit" class="btn btn-primary w-50 btn-lg shadow-sm" style="background-color: #0f2c59; border-color: #0f2c59;">
+                            <i class="bi bi-check-circle me-1"></i> Initialize Template & Open Studio
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

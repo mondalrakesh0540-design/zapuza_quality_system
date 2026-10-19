@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block title %}Issue Certificate of Conformance - {{ traveler.traveler_barcode }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-9">
+        <div class="d-flex align-items-center justify-content-between mb-4 border-bottom pb-3">
+            <div>
+                <h2 class="h3 fw-bold mb-1 text-dark">
+                    <i class="bi bi-award text-primary me-2"></i>Issue Certificate of Conformance (CoC)
+                </h2>
+                <span class="text-muted small">
+                    BRD Section 11: Formal Quality Release for finished production batch.
+                </span>
+            </div>
+            <a href="{% url 'quality:pdi_queue' %}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1"></i> Back to PDI Queue
+            </a>
+        </div>
+
+        <!-- Verification Pre-Check Summary Card -->
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-dark text-white py-3">
+                <h5 class="card-title mb-0 small text-uppercase fw-bold">
+                    <i class="bi bi-shield-check me-2 text-warning"></i>Pre-Issuance Compliance Interlock Check
+                </h5>
+            </div>
+            <div class="card-body p-4">
+                <div class="list-group list-group-flush mb-4">
+                    <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                        <div>
+                            <div class="fw-bold text-dark">1. Sequential Routing Operations</div>
+                            <small class="text-muted">All manufacturing operations completed and signed off</small>
+                        </div>
+                        <span class="badge bg-success-subtle text-success border border-success px-3 py-2">
+                            <i class="bi bi-check-circle-fill me-1"></i> 100% Complete
+                        </span>
+                    </div>
+
+                    <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                        <div>
+                            <div class="fw-bold text-dark">2. Mandatory Process Holds</div>
+                            <small class="text-muted">Cooling, curing, and chemical treatment hold timers</small>
+                        </div>
+                        <span class="badge bg-success-subtle text-success border border-success px-3 py-2">
+                            <i class="bi bi-check-circle-fill me-1"></i> Holds Elapsed
+                        </span>
+                    </div>
+
+                    <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                        <div>
+                            <div class="fw-bold text-dark">3. Pre-Dispatch Inspection (PDI) Approval</div>
+                            <small class="text-muted">Final PDI record: {{ pdi_insp.inspection_number }}</small>
+                        </div>
+                        <span class="badge bg-success-subtle text-success border border-success px-3 py-2">
+                            <i class="bi bi-check-circle-fill me-1"></i> Quality Cleared
+                        </span>
+                    </div>
+
+                    <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                        <div>
+                            <div class="fw-bold text-dark">4. Critical-to-Quality (CTQ) Parameters</div>
+                            <small class="text-muted">Zero-tolerance interlock; no concession allowed on CTQs</small>
+                        </div>
+                        <span class="badge bg-success-subtle text-success border border-success px-3 py-2">
+                            <i class="bi bi-check-circle-fill me-1"></i> In-Tolerance OK
+                        </span>
+                    </div>
+
+                    <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                        <div>
+                            <div class="fw-bold text-dark">5. Raw Material & Heat Traceability</div>
+                            <small class="text-muted">Heat #{{ lot.heat_number }} (Lot: {{ lot.lot_number }}) - MTC Verified</small>
+                        </div>
+                        <span class="badge bg-success-subtle text-success border border-success px-3 py-2">
+                            <i class="bi bi-check-circle-fill me-1"></i> Verified on File
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Batch Details Table -->
+                <div class="table-responsive border rounded p-3 bg-light mb-4">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="small text-muted text-uppercase">Part Number & Name:</div>
+                            <div class="fw-bold text-dark">{{ part.part_number }} - {{ part.part_name }}</div>
+                            <div class="small text-secondary">Drawing: {{ part.drawing_number }} ({{ part.revision_level }})</div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="small text-muted text-uppercase">Material Grade & Heat:</div>
+                            <div class="fw-bold text-dark">{{ lot.material_grade.code }}</div>
+                            <div class="small text-secondary">Mill Heat #: <strong>{{ lot.heat_number }}</strong> (Supplier: {{ lot.supplier_name }})</div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="small text-muted text-uppercase">Work Order & Traveler:</div>
+                            <div class="fw-bold text-dark">{{ work_order.work_order_number }}</div>
+                            <div class="small text-secondary font-monospace">{{ traveler.traveler_barcode }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="small text-muted text-uppercase">Quantity:</div>
+                            <div class="fw-bold text-dark">{{ work_order.completed_quantity }} of {{ work_order.target_quantity }} Units</div>
+                            <div class="small text-secondary">Inspection Status: Final PDI Passed</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Issuance Confirmation Form -->
+                <form method="post" action="{% url 'quality:coc_generate' traveler.id %}">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="notes" class="form-label fw-bold text-dark small text-uppercase">
+                            Optional Quality Engineering Notes / Customer PO Ref:
+                        </label>
+                        <textarea class="form-control" id="notes" name="notes" rows="2" placeholder="e.g. Cleared for export packing per Customer PO-9942; certified packaging standards applied."></textarea>
+                    </div>
+
+                    <div class="alert alert-info d-flex align-items-center mb-4" role="alert">
+                        <i class="bi bi-info-circle-fill fs-4 me-3"></i>
+                        <div class="small">
+                            <strong>Electronic Audit Notice:</strong> Issuing this Certificate of Conformance creates an immutable audit record 
+                            stamped with your employee ID (<strong>{{ user.employee_id }}</strong>), UTC timestamp, and generates a SHA-256 tamper-evident PDF document.
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center">
+                        <a href="{% url 'quality:pdi_queue' %}" class="btn btn-outline-secondary">
+                            Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary btn-lg px-4">
+                            <i class="bi bi-award-fill me-2"></i> Formally Generate & Digitally Stamp CoC
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

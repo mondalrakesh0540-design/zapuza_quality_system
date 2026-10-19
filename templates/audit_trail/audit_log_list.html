@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}System Audit Trail - Zapuza Quality OS{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between mb-4 border-bottom pb-3">
+    <div>
+        <h2 class="h3 fw-bold mb-1 text-dark">
+            <i class="bi bi-journal-check text-primary me-2"></i>Immutable System Audit Trail
+        </h2>
+        <span class="text-muted small">
+            BRD Section 13.3: Tamper-proof, append-only activity log for ISO / aerospace quality audit compliance.
+        </span>
+    </div>
+    <div>
+        <span class="badge bg-success-subtle text-success border border-success px-3 py-2">
+            <i class="bi bi-shield-lock-fill me-1"></i> Tamper-Proof & Append-Only
+        </span>
+    </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="card shadow-sm border-0 mb-4 bg-light">
+    <div class="card-body p-3">
+        <form method="GET" class="row g-2 align-items-center">
+            <div class="col-md-5">
+                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Action Type</label>
+                <select name="action" class="form-select" onchange="this.form.submit()">
+                    <option value="">-- All Actions --</option>
+                    {% for code, label in action_choices %}
+                        <option value="{{ code }}" {% if selected_action == code %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-5">
+                <label class="form-label small fw-bold text-muted text-uppercase mb-1">User Role</label>
+                <select name="role" class="form-select" onchange="this.form.submit()">
+                    <option value="">-- All Roles --</option>
+                    <option value="Plant Manager" {% if selected_role == 'Plant Manager' %}selected{% endif %}>Plant Manager</option>
+                    <option value="Quality Manager" {% if selected_role == 'Quality Manager' %}selected{% endif %}>Quality Manager</option>
+                    <option value="Quality Engineer" {% if selected_role == 'Quality Engineer' %}selected{% endif %}>Quality Engineer</option>
+                    <option value="Shift Supervisor" {% if selected_role == 'Shift Supervisor' %}selected{% endif %}>Shift Supervisor</option>
+                    <option value="QA Floor Inspector" {% if selected_role == 'QA Floor Inspector' %}selected{% endif %}>QA Floor Inspector</option>
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <a href="{% url 'audit_trail:audit_log_list' %}" class="btn btn-outline-secondary w-100">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i> Reset
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Audit Log Table -->
+<div class="card shadow-sm border-0">
+    <div class="table-responsive">
+        <table class="table table-hover table-industrial align-middle mb-0 font-monospace small">
+            <thead>
+                <tr>
+                    <th>Timestamp (UTC)</th>
+                    <th>User / ID</th>
+                    <th>Role</th>
+                    <th>Action</th>
+                    <th>Target Object</th>
+                    <th>IP Address</th>
+                    <th>Details</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td class="text-nowrap">{{ log.timestamp|date:"Y-m-d H:i:s" }}</td>
+                    <td>
+                        <strong class="text-primary">{{ log.user_identifier }}</strong>
+                    </td>
+                    <td>
+                        <span class="badge bg-light text-dark border">{{ log.user_role }}</span>
+                    </td>
+                    <td>
+                        <span class="badge bg-dark">{{ log.get_action_display }}</span>
+                    </td>
+                    <td>
+                        {{ log.model_name }}: <strong>{{ log.object_repr|default:log.object_id }}</strong>
+                    </td>
+                    <td class="text-muted">{{ log.ip_address|default:"-" }}</td>
+                    <td class="font-sans-serif" style="font-family: sans-serif; font-size: 0.85rem;">
+                        {{ log.details }}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center text-muted py-4">No audit records found matching criteria.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

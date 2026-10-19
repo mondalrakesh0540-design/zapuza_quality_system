@@ -1,0 +1,12 @@
+{
+  "name": "autoverse-workspace",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix autoverse run dev",
+    "build": "npm --prefix autoverse run build",
+    "start": "npm --prefix autoverse start",
+    "test": "npm --prefix autoverse test",
+    "install:app": "npm --prefix autoverse install"
+  }
+}

@@ -1,0 +1,376 @@
+{% extends "base.html" %}
+
+{% block title %}Review Inspection {{ inspection.inspection_number }} - Zapuza Quality OS{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard:index' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'quality:supervisor_queue' %}">Review Queue</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{{ inspection.inspection_number }}</li>
+    </ol>
+</nav>
+
+<!-- Header Card -->
+<div class="card shadow-sm border-0 mb-4 bg-dark text-white">
+    <div class="card-body p-4 d-flex flex-wrap align-items-center justify-content-between">
+        <div>
+            <span class="badge bg-primary font-monospace fs-6 me-2">{{ inspection.inspection_number }}</span>
+            <span class="badge bg-warning text-dark font-monospace fs-6 me-2">Op {{ inspection.traveler_operation.operation_sequence }}</span>
+            <h3 class="fw-bold d-inline align-middle">{{ inspection.traveler_operation.operation_name }}</h3>
+            <div class="text-white-50 small mt-2">
+                Job Traveler: <strong class="text-white font-monospace">{{ inspection.traveler_operation.traveler.traveler_barcode }}</strong>
+                &bull; Part: <strong class="text-white">{{ inspection.traveler_operation.traveler.work_order.part.part_number }}</strong> ({{ inspection.traveler_operation.traveler.work_order.part.part_name }})
+                &bull; Machine: <strong class="text-white font-monospace">{{ inspection.workstation.machine_code }}</strong>
+            </div>
+            <div class="text-white-50 small mt-1">
+                Inspector: <strong class="text-white">{{ inspection.inspector.employee_id }}</strong> ({{ inspection.inspector.get_full_name|default:inspection.inspector.username }})
+                &bull; Scanned Station: <span class="font-monospace text-white">{{ inspection.station_qr_scanned }}</span>
+                &bull; Scanned Traveler: <span class="font-monospace text-white">{{ inspection.traveler_barcode_scanned }}</span>
+                &bull; Mode: {% if inspection.is_demo_scan %}<span class="badge bg-secondary">Demo Scan</span>{% else %}<span class="badge bg-success">Camera Verified</span>{% endif %}
+            </div>
+        </div>
+        <div class="mt-3 mt-md-0 text-end">
+            {% if inspection.status == 'PENDING_REVIEW' %}
+                <span class="badge bg-warning text-dark fs-6 px-3 py-2">
+                    <i class="bi bi-hourglass-split me-1"></i>Awaiting Decision
+                </span>
+            {% elif inspection.status == 'APPROVED' %}
+                <span class="badge bg-success fs-6 px-3 py-2">
+                    <i class="bi bi-check-circle-fill me-1"></i>Approved by {{ inspection.reviewed_by.employee_id }}
+                </span>
+            {% elif inspection.status == 'CONCESSION_APPROVED' %}
+                <span class="badge bg-info text-dark fs-6 px-3 py-2">
+                    <i class="bi bi-patch-exclamation-fill me-1"></i>Approved Under Concession
+                </span>
+            {% elif inspection.status == 'REJECTED_QUARANTINED' %}
+                <span class="badge bg-danger fs-6 px-3 py-2">
+                    <i class="bi bi-x-octagon-fill me-1"></i>Rejected & Quarantined
+                </span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Tolerance & CTQ Status Alerts -->
+{% if inspection.has_ctq_defect %}
+<div class="alert alert-danger shadow-sm border-2 border-danger d-flex align-items-center mb-4">
+    <i class="bi bi-exclamation-triangle-fill fs-2 me-3 text-danger"></i>
+    <div>
+        <h5 class="fw-bold mb-1">CRITICAL-TO-QUALITY (CTQ) FAILURE DETECTED</h5>
+        <div class="small">
+            Under <strong>BRD Section 4.3 & 6.1</strong>, a strict <strong>Zero-Concession Rule</strong> applies to CTQ parameters. 
+            Conditional concessions are blocked on the server for this inspection. The batch must be rejected and quarantined.
+        </div>
+    </div>
+</div>
+{% elif not inspection.overall_in_tolerance %}
+<div class="alert alert-warning shadow-sm border-2 border-warning d-flex align-items-center mb-4">
+    <i class="bi bi-exclamation-circle-fill fs-2 me-3 text-warning"></i>
+    <div>
+        <h5 class="fw-bold mb-1">NON-CTQ DIMENSIONAL DEVIATION RECORDED</h5>
+        <div class="small">
+            One or more non-critical parameters are out of standard drawing tolerance. 
+            Under <strong>BRD Section 6.1</strong>, a Quality Manager or authorized supervisor may grant a conditional concession with mandatory technical justification.
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="alert alert-success shadow-sm border-2 border-success d-flex align-items-center mb-4">
+    <i class="bi bi-check-circle-fill fs-2 me-3 text-success"></i>
+    <div>
+        <h5 class="fw-bold mb-1">ALL MEASUREMENTS IN TOLERANCE (100% CONFORMANCE)</h5>
+        <div class="small">
+            Every parameter reading meets the engineering drawing tolerances. Batch is cleared for production sign-off.
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Measurements Table -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-header bg-white py-3 fw-bold d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-list-check text-primary me-2"></i>Parameter Measurements & Tolerance Evaluation</span>
+        <span class="badge bg-light text-muted border">{{ measurements.count }} Parameters Checked</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>#</th>
+                    <th>Parameter & Target</th>
+                    <th>Required / Used Tool</th>
+                    <th>Measured Value</th>
+                    <th>Tolerance Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for m in measurements %}
+                <tr class="{% if not m.is_in_tolerance %}table-danger bg-opacity-25{% endif %}">
+                    <td class="fw-bold">{{ m.parameter.sequence_order }}</td>
+                    <td>
+                        <div class="fw-semibold">
+                            {{ m.parameter.parameter_name }}
+                            {% if m.parameter.is_ctq %}
+                                <span class="badge bg-warning text-dark border ms-1">
+                                    <i class="bi bi-exclamation-triangle-fill me-1"></i>CTQ
+                                </span>
+                            {% endif %}
+                        </div>
+                        <div class="small text-muted">
+                            {% if m.parameter.parameter_type == 'DIMENSION' %}
+                                Nominal: <strong>{{ m.parameter.nominal_value }} {{ m.parameter.unit }}</strong>
+                                &bull; Range: [{{ m.parameter.lower_limit }} to {{ m.parameter.upper_limit }} {{ m.parameter.unit }}]
+                            {% elif m.parameter.parameter_type == 'THRESHOLD' %}
+                                {{ m.parameter.get_threshold_type_display }}: <strong>{{ m.parameter.threshold_limit }} {{ m.parameter.unit }}</strong>
+                            {% else %}
+                                Visual Pass/Fail Check
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td>
+                        {% if m.measuring_tool %}
+                            <div>
+                                <i class="bi bi-rulers me-1 text-primary"></i>
+                                <strong>{{ m.measuring_tool.tool_id }}</strong> ({{ m.measuring_tool.name }})
+                            </div>
+                            <small class="text-muted">
+                                Cal Due: {{ m.measuring_tool.calibration_due_date|date:"Y-m-d" }}
+                                {% if m.measuring_tool.is_calibration_valid %}
+                                    <span class="badge bg-success-subtle text-success">Cal OK</span>
+                                {% else %}
+                                    <span class="badge bg-danger">Cal Expired</span>
+                                {% endif %}
+                            </small>
+                        {% else %}
+                            <span class="text-muted small">Visual / None</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if m.parameter.parameter_type == 'VISUAL' %}
+                            {% if m.visual_passed %}
+                                <span class="badge bg-success fs-6"><i class="bi bi-check-circle me-1"></i>PASS</span>
+                            {% else %}
+                                <span class="badge bg-danger fs-6"><i class="bi bi-x-circle me-1"></i>FAIL</span>
+                            {% endif %}
+                        {% else %}
+                            <strong class="font-monospace fs-5 {% if m.is_in_tolerance %}text-success{% else %}text-danger{% endif %}">
+                                {{ m.measured_value }} {{ m.parameter.unit }}
+                            </strong>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if m.is_in_tolerance %}
+                            <span class="badge bg-success px-2 py-1"><i class="bi bi-check-lg me-1"></i>In Tolerance</span>
+                        {% else %}
+                            <span class="badge bg-danger px-2 py-1"><i class="bi bi-x-lg me-1"></i>Out of Spec</span>
+                            <div class="small text-danger fw-semibold mt-1">{{ m.tolerance_message }}</div>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Defect Photos Section -->
+{% if defect_photos %}
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-header bg-white py-3 fw-bold">
+        <i class="bi bi-camera text-danger me-2"></i>Photographic Defect Evidence ({{ defect_photos.count }})
+    </div>
+    <div class="card-body p-4">
+        <div class="row g-3">
+            {% for dp in defect_photos %}
+            <div class="col-md-4">
+                <div class="card h-100 border">
+                    <img src="{{ dp.photo_file.url }}" class="card-img-top" alt="{{ dp.caption }}" style="height: 220px; object-fit: cover;">
+                    <div class="card-body p-2 small">
+                        <div class="fw-bold">{{ dp.caption|default:"Defect Photo" }}</div>
+                        <div class="text-muted">Uploaded {{ dp.uploaded_at|date:"Y-m-d H:i" }}</div>
+                        <a href="{{ dp.photo_file.url }}" target="_blank" class="small text-primary text-decoration-none">View Full Resolution</a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Existing Concession Details (If already granted) -->
+{% if concession %}
+<div class="card shadow-sm border-2 border-info mb-4">
+    <div class="card-header bg-info text-dark py-3 fw-bold">
+        <i class="bi bi-patch-exclamation-fill me-2"></i>Engineering Concession Record: {{ concession.concession_number }}
+    </div>
+    <div class="card-body p-4">
+        <div class="row g-3">
+            <div class="col-md-4">
+                <label class="small fw-bold text-muted text-uppercase">Reason Code</label>
+                <div>{{ concession.get_reason_code_display }}</div>
+            </div>
+            <div class="col-md-4">
+                <label class="small fw-bold text-muted text-uppercase">Authorized By</label>
+                <div>{{ concession.granted_by.employee_id }} ({{ concession.granted_by.get_full_name|default:concession.granted_by.username }})</div>
+            </div>
+            <div class="col-md-4">
+                <label class="small fw-bold text-muted text-uppercase">Granted At</label>
+                <div>{{ concession.granted_at|date:"Y-m-d H:i" }}</div>
+            </div>
+            <div class="col-12">
+                <label class="small fw-bold text-muted text-uppercase">Engineering Justification</label>
+                <div class="p-3 bg-light rounded border">{{ concession.engineering_justification }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Inspector Notes -->
+{% if inspection.inspector_notes %}
+<div class="card shadow-sm border-0 mb-4 bg-light">
+    <div class="card-body p-3">
+        <strong class="small fw-bold text-muted text-uppercase d-block mb-1">Inspector Observations:</strong>
+        <p class="mb-0 small text-dark">"{{ inspection.inspector_notes }}"</p>
+    </div>
+</div>
+{% endif %}
+
+<!-- Supervisor Decision Action Bar -->
+{% if inspection.status == 'PENDING_REVIEW' and user.can_review_inspections %}
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-header bg-dark text-white py-3 fw-bold">
+        <i class="bi bi-pen me-2 text-warning"></i>Supervisor / Quality Manager Formal Review Decision
+    </div>
+    <div class="card-body p-4">
+        <div class="row g-3 justify-content-center">
+            <!-- Approve Button -->
+            <div class="col-md-4">
+                <button type="button" class="btn btn-success btn-lg w-100 shadow-sm" data-bs-toggle="modal" data-bs-target="#approveModal">
+                    <i class="bi bi-check-circle-fill me-2"></i> Formally Approve
+                </button>
+            </div>
+
+            <!-- Concession Button (Disabled if CTQ failure) -->
+            <div class="col-md-4">
+                {% if inspection.has_ctq_defect %}
+                    <button type="button" class="btn btn-outline-secondary btn-lg w-100" disabled title="Zero-Concession Rule: CTQ parameter failure cannot be conceded.">
+                        <i class="bi bi-slash-circle me-2"></i> Concession Blocked (CTQ)
+                    </button>
+                {% else %}
+                    <button type="button" class="btn btn-warning text-dark btn-lg w-100 shadow-sm" data-bs-toggle="modal" data-bs-target="#concessionModal">
+                        <i class="bi bi-patch-exclamation-fill me-2"></i> Issue Concession
+                    </button>
+                {% endif %}
+            </div>
+
+            <!-- Reject & Quarantine Button -->
+            <div class="col-md-4">
+                <button type="button" class="btn btn-danger btn-lg w-100 shadow-sm" data-bs-toggle="modal" data-bs-target="#rejectModal">
+                    <i class="bi bi-x-octagon-fill me-2"></i> Reject & Quarantine
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal 1: Approve Modal -->
+<div class="modal fade" id="approveModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="bi bi-check-circle-fill me-2"></i>Approve Floor Inspection</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="approve">
+                <div class="modal-body">
+                    <p class="small text-muted mb-3">
+                        Approving clears this operation and unlocks the next sequential operation on Job Traveler <strong>{{ inspection.traveler_operation.traveler.traveler_barcode }}</strong>.
+                    </p>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Approval Notes</label>
+                        <textarea name="notes" class="form-control" rows="2" placeholder="Confirming all dimensional and visual checks satisfy drawing requirements."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success btn-sm">Confirm Approval & Release Step</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal 2: Concession Modal -->
+<div class="modal fade" id="concessionModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title"><i class="bi bi-patch-exclamation-fill me-2"></i>Grant Engineering Concession</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="concession">
+                <div class="modal-body">
+                    <div class="alert alert-warning small mb-3">
+                        <i class="bi bi-info-circle-fill me-1"></i>
+                        BRD Section 6.1: Concessions are permitted ONLY for non-CTQ dimensions with engineering approval. A permanent concession record and audit entry will be generated.
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Concession Reason Code *</label>
+                        <select name="reason_code" class="form-select" required>
+                            {% for code, label in concession_reasons %}
+                                <option value="{{ code }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Technical / Engineering Justification *</label>
+                        <textarea name="engineering_justification" class="form-control" rows="3" placeholder="Provide detailed technical rationale explaining why the measured deviation does not compromise fit, form, or fatigue life..." required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning text-dark btn-sm fw-bold">Authorize Concession Release</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal 3: Reject Modal -->
+<div class="modal fade" id="rejectModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="bi bi-x-octagon-fill me-2"></i>Reject & Quarantine Batch</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="reject">
+                <div class="modal-body">
+                    <div class="alert alert-danger small mb-3">
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                        Rejection places Job Traveler <strong>{{ inspection.traveler_operation.traveler.traveler_barcode }}</strong> into <strong>QUARANTINE</strong>. Downstream machines will be locked until Material Review Board (MRB) disposition.
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Rejection Defect Reason *</label>
+                        <textarea name="rejection_reason" class="form-control" rows="3" placeholder="e.g. Journal diameter exceeds drawing limit by 0.035mm on CTQ parameter. Non-reworkable undersize condition." required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger btn-sm">Confirm Rejection & Tag Quarantine</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

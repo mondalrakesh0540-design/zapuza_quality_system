@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block title %}Heat Number Traceability - Zapuza Quality OS{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between mb-4 border-bottom pb-3">
+    <div>
+        <h2 class="h3 fw-bold mb-1 text-dark">
+            <i class="bi bi-diagram-3-fill text-primary me-2"></i>Heat Number Forward Recall Traceability
+        </h2>
+        <span class="text-muted small">
+            BRD Section 7.2: Query any raw material heat number to trace complete material lineage, MTC, lab analyses, and work order releases.
+        </span>
+    </div>
+</div>
+
+<!-- Search Input -->
+<div class="row justify-content-center mb-5">
+    <div class="col-lg-8">
+        <div class="card shadow-sm border-0 bg-light p-4">
+            <form method="GET" class="d-flex gap-2">
+                <div class="input-group input-group-lg">
+                    <span class="input-group-text bg-white"><i class="bi bi-search text-primary"></i></span>
+                    <input type="text" name="heat_number" class="form-control font-monospace text-uppercase" placeholder="Enter Heat Number (e.g. H-8042 or H-9102)" value="{{ query }}" required autofocus>
+                </div>
+                <button type="submit" class="btn btn-primary btn-lg px-4" style="background-color: #0f2c59; border-color: #0f2c59;">
+                    Query Pedigree
+                </button>
+            </form>
+            <div class="d-flex gap-2 mt-2 align-items-center">
+                <small class="text-muted">Sample Demo Queries:</small>
+                <a href="?heat_number=H-8042" class="badge bg-success-subtle text-success text-decoration-none border border-success">H-8042 (Cleared)</a>
+                <a href="?heat_number=H-9102" class="badge bg-primary-subtle text-primary text-decoration-none border border-primary">H-9102 (In Testing)</a>
+                <a href="?heat_number=H-7701" class="badge bg-danger-subtle text-danger text-decoration-none border border-danger">H-7701 (Quarantined)</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Query Results Display -->
+{% if query %}
+    {% if lots %}
+        {% for lot in lots %}
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-dark text-white p-3 d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="badge bg-warning text-dark font-monospace fs-6 me-2">HEAT #{{ lot.heat_number }}</span>
+                    <span class="fw-bold">Intake Lot: {{ lot.lot_number }}</span>
+                </div>
+                <div>
+                    {% if lot.status == 'QUARANTINED' %}
+                        <span class="badge bg-danger fs-6"><i class="bi bi-lock-fill me-1"></i>SUPPLIER QUARANTINE</span>
+                    {% elif lot.can_issue_to_production.0 %}
+                        <span class="badge bg-success fs-6"><i class="bi bi-unlock-fill me-1"></i>CLEARED FOR WORK ORDERS</span>
+                    {% else %}
+                        <span class="badge bg-warning text-dark fs-6"><i class="bi bi-hourglass-split me-1"></i>HOLD / PENDING</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card-body p-4">
+                <div class="row g-4 mb-4">
+                    <!-- Provenance Details -->
+                    <div class="col-md-6 border-end">
+                        <h6 class="fw-bold text-uppercase text-muted border-bottom pb-2 mb-3">Material Provenance & Dock Intake</h6>
+                        <div class="row g-2 small">
+                            <div class="col-sm-5 text-muted">Steel Mill / Vendor:</div>
+                            <div class="col-sm-7 fw-bold">{{ lot.supplier_name }}</div>
+
+                            <div class="col-sm-5 text-muted">Purchase Order:</div>
+                            <div class="col-sm-7 font-monospace fw-semibold">{{ lot.purchase_order_no }}</div>
+
+                            <div class="col-sm-5 text-muted">Material Grade:</div>
+                            <div class="col-sm-7 fw-bold">{{ lot.material_grade.code }} ({{ lot.material_grade.name }})</div>
+
+                            <div class="col-sm-5 text-muted">Received Quantity:</div>
+                            <div class="col-sm-7 fw-bold">{{ lot.quantity_received }} {{ lot.get_unit_display }}</div>
+
+                            <div class="col-sm-5 text-muted">Intake Timestamp:</div>
+                            <div class="col-sm-7">{{ lot.created_at|date:"Y-m-d H:i" }}</div>
+
+                            <div class="col-sm-5 text-muted">Receiving Clerk:</div>
+                            <div class="col-sm-7">{{ lot.received_by.get_full_name|default:lot.received_by.username }} ({{ lot.received_by.employee_id }})</div>
+                        </div>
+                    </div>
+
+                    <!-- Quality Certification Gate -->
+                    <div class="col-md-6">
+                        <h6 class="fw-bold text-uppercase text-muted border-bottom pb-2 mb-3">Quality Gate Status</h6>
+                        <div class="d-flex flex-column gap-2">
+                            <!-- MTC Gate -->
+                            <div class="d-flex justify-content-between align-items-center p-2 rounded border {% if lot.mtc_verified %}bg-success-subtle border-success text-success{% else %}bg-warning-subtle border-warning text-dark{% endif %}">
+                                <div>
+                                    <strong>1. Mill Test Certificate (MTC):</strong>
+                                    <div class="small">{% if lot.mtc_verified %}Verified by {{ lot.mtc_verified_by.employee_id }}{% else %}Awaiting Quality Verification{% endif %}</div>
+                                </div>
+                                <span class="badge {% if lot.mtc_verified %}bg-success{% else %}bg-warning text-dark{% endif %}">
+                                    {% if lot.mtc_verified %}VERIFIED{% else %}PENDING{% endif %}
+                                </span>
+                            </div>
+
+                            <!-- Lab Test Gate -->
+                            <div class="d-flex justify-content-between align-items-center p-2 rounded border {% if lot.lab_status == 'PASSED' %}bg-success-subtle border-success text-success{% elif lot.lab_status == 'IN_LAB_TESTING' %}bg-primary-subtle border-primary text-primary{% elif lot.lab_status == 'FAILED' %}bg-danger-subtle border-danger text-danger{% else %}bg-light text-muted{% endif %}">
+                                <div>
+                                    <strong>2. Lab Spectro & Strength Analysis:</strong>
+                                    <div class="small">{{ lot.get_lab_status_display }}</div>
+                                </div>
+                                <span class="badge {% if lot.lab_status == 'PASSED' %}bg-success{% elif lot.lab_status == 'IN_LAB_TESTING' %}bg-primary{% elif lot.lab_status == 'FAILED' %}bg-danger{% else %}bg-secondary{% endif %}">
+                                    {{ lot.get_lab_status_display }}
+                                </span>
+                            </div>
+
+                            <!-- Work Order Clearance Gate -->
+                            <div class="d-flex justify-content-between align-items-center p-2 rounded border {% if lot.can_issue_to_production.0 %}bg-success-subtle border-success text-success{% else %}bg-danger-subtle border-danger text-danger{% endif %}">
+                                <div>
+                                    <strong>3. Work Order Release Clearance:</strong>
+                                    <div class="small">{{ lot.can_issue_to_production.1 }}</div>
+                                </div>
+                                <span class="badge {% if lot.can_issue_to_production.0 %}bg-success{% else %}bg-danger{% endif %}">
+                                    {% if lot.can_issue_to_production.0 %}AUTHORIZED{% else %}BLOCKED{% endif %}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-end gap-2">
+                    <a href="{% url 'inventory:intake_detail' pk=lot.pk %}" class="btn btn-outline-primary">
+                        <i class="bi bi-eye me-1"></i> Full Lot Details
+                    </a>
+                    {% if lot.mtc_file %}
+                    <a href="{{ lot.mtc_file.url }}" target="_blank" class="btn btn-outline-danger">
+                        <i class="bi bi-file-earmark-pdf-fill me-1"></i> View Mill Certificate
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="alert alert-warning text-center py-4">
+            <i class="bi bi-exclamation-triangle fs-2 d-block mb-2"></i>
+            No raw material intake lots found matching Heat Number <strong>"{{ query }}"</strong>.
+        </div>
+    {% endif %}
+{% endif %}
+{% endblock %}

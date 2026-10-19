@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block title %}Clear Shipping Gate Pass - {{ traveler.traveler_barcode }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-9">
+        <div class="d-flex align-items-center justify-content-between mb-4 border-bottom pb-3">
+            <div>
+                <h2 class="h3 fw-bold mb-1 text-dark">
+                    <i class="bi bi-truck text-primary me-2"></i>Issue Final Shipping Gate Pass & Manifest
+                </h2>
+                <span class="text-muted small">
+                    BRD Section 10 & 11: Electronic gate clearance for Job Traveler <strong>{{ traveler.traveler_barcode }}</strong>.
+                </span>
+            </div>
+            <a href="{% url 'dispatch:dispatch_queue' %}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1"></i> Back to Dispatch Gate
+            </a>
+        </div>
+
+        <!-- Verification Interlock Summary Box -->
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-success text-white py-2">
+                <div class="small text-uppercase fw-bold"><i class="bi bi-check-circle-fill me-2"></i>Pre-Dispatch Shipping Interlocks Passed</div>
+            </div>
+            <div class="card-body p-3 bg-light">
+                <div class="row g-2 small">
+                    <div class="col-md-3">
+                        <div class="text-muted">Part Number:</div>
+                        <div class="fw-bold text-dark">{{ part.part_number }}</div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-muted">Work Order / Traveler:</div>
+                        <div class="fw-bold font-monospace">{{ work_order.work_order_number }}</div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-muted">Heat Traceability:</div>
+                        <div class="fw-bold">Heat #{{ traveler.work_order.raw_material_lot.heat_number }}</div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-muted">CoC Reference:</div>
+                        <div class="fw-bold text-success font-monospace">{{ coc.certificate_number }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Clearance Form -->
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-4">
+                <form method="post">
+                    {% csrf_token %}
+                    <h5 class="fw-bold text-dark border-bottom pb-2 mb-3">1. Customer & Shipping Destination</h5>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-uppercase">Customer / OEM Name: <span class="text-danger">*</span></label>
+                            <input type="text" name="customer_name" class="form-control" required placeholder="e.g. Brembo India Automotive Pvt Ltd">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-uppercase">Customer Purchase Order (PO): <span class="text-danger">*</span></label>
+                            <input type="text" name="customer_po_number" class="form-control" required placeholder="e.g. PO-BRM-2026-9041">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-bold small text-uppercase">Delivery Address / Destination: <span class="text-danger">*</span></label>
+                            <textarea name="shipping_destination" class="form-control" rows="2" required placeholder="e.g. Brembo Warehouse Plant 2, Chakan Industrial Area, Pune 410501"></textarea>
+                        </div>
+                    </div>
+
+                    <h5 class="fw-bold text-dark border-bottom pb-2 mb-3 mt-4">2. Transport & Logistics Details</h5>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold small text-uppercase">Vehicle Number: <span class="text-danger">*</span></label>
+                            <input type="text" name="transport_vehicle_number" class="form-control" required placeholder="e.g. MH-12-QZ-4012">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold small text-uppercase">Driver Name: <span class="text-danger">*</span></label>
+                            <input type="text" name="driver_name" class="form-control" required placeholder="e.g. Rajesh Shinde">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold small text-uppercase">Driver Contact No:</label>
+                            <input type="text" name="driver_contact" class="form-control" placeholder="e.g. +91 98220 11223">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold small text-uppercase">Driver License No:</label>
+                            <input type="text" name="driver_license" class="form-control" placeholder="e.g. MH12-20180029341">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold small text-uppercase">Container Seal Tag ID:</label>
+                            <input type="text" name="container_seal_number" class="form-control" placeholder="e.g. SEAL-ZAP-88410">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold small text-uppercase">Physical Packed Qty (Units): <span class="text-danger">*</span></label>
+                            <input type="number" name="dispatch_quantity" class="form-control" value="{{ work_order.completed_quantity }}" min="1" required>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold small text-uppercase">Gate Dispatch Remarks / Special Handling:</label>
+                        <textarea name="remarks" class="form-control" rows="2" placeholder="e.g. Palletized and wrapped with VCI rust-preventative film; certified clean."></textarea>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center border-top pt-3">
+                        <a href="{% url 'dispatch:dispatch_queue' %}" class="btn btn-outline-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary btn-lg px-4">
+                            <i class="bi bi-shield-check me-2"></i> Authorize & Issue Security Gate Pass
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

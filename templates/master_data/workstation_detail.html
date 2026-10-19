@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+
+{% block title %}{{ workstation.machine_code }} - Station Details{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard:index' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'master_data:workstation_list' %}">Workstations</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{{ workstation.machine_code }}</li>
+    </ol>
+</nav>
+
+<div class="d-flex flex-wrap align-items-center justify-content-between mb-4 border-bottom pb-3">
+    <div>
+        <h2 class="h3 fw-bold mb-1 text-dark">
+            <span class="badge bg-dark font-monospace me-2">{{ workstation.machine_code }}</span>
+            {{ workstation.name }}
+        </h2>
+        <span class="text-muted small">
+            Department: <strong>{{ workstation.department.name }}</strong> ({{ workstation.department.code }}) &bull; Status: <strong>{{ workstation.get_status_display }}</strong>
+        </span>
+    </div>
+    <div class="d-flex gap-2 mt-2 mt-md-0">
+        {% if user.can_sign_off_pm %}
+        <a href="{% url 'master_data:workstation_pm_create' pk=workstation.pk %}" class="btn btn-warning text-dark fw-bold">
+            <i class="bi bi-clipboard2-check me-1"></i> Perform Daily PM Checklist
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Machine Details & Clearance Status -->
+    <div class="col-lg-7">
+        <!-- Live Interlock Gate Status -->
+        <div class="mb-4">
+            {% if can_start %}
+            <div class="cleared-banner d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-shield-check fs-1 me-3 text-success"></i>
+                    <div>
+                        <h5 class="fw-bold mb-0">Production Job Selection: CLEARED</h5>
+                        <p class="mb-0 small text-success">
+                            Daily PM checklist is signed and passed. Workstation is operational for tablet job selection.
+                        </p>
+                    </div>
+                </div>
+                <span class="badge bg-success fs-6 px-3 py-2">UNLOCKED</span>
+            </div>
+            {% else %}
+            <div class="lockout-banner d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-shield-slash fs-1 me-3 text-danger"></i>
+                    <div>
+                        <h5 class="fw-bold mb-0">Production Job Selection: LOCKED</h5>
+                        <p class="mb-0 small text-danger">
+                            {{ lockout_reason }}
+                        </p>
+                    </div>
+                </div>
+                <span class="badge bg-danger fs-6 px-3 py-2">LOCKED</span>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Machine Attributes -->
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-white py-3 fw-bold">
+                <i class="bi bi-info-circle me-2 text-primary"></i>Workstation Specifications
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-sm-6">
+                        <small class="text-muted d-block">Machine Code:</small>
+                        <span class="fw-bold fs-5 font-monospace">{{ workstation.machine_code }}</span>
+                    </div>
+                    <div class="col-sm-6">
+                        <small class="text-muted d-block">Department / Bay:</small>
+                        <span class="fw-bold">{{ workstation.department.name }}</span>
+                    </div>
+                    <div class="col-sm-6">
+                        <small class="text-muted d-block">Operating Mode:</small>
+                        <span class="badge bg-primary">{{ workstation.get_status_display }}</span>
+                    </div>
+                    <div class="col-sm-6">
+                        <small class="text-muted d-block">Active State:</small>
+                        {% if workstation.is_active %}
+                            <span class="badge bg-success">Active Production Asset</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Decommissioned / Inactive</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent PM Checklist History -->
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <span class="fw-bold"><i class="bi bi-clock-history me-2 text-primary"></i>Daily PM History</span>
+                <small class="text-muted">Last 15 records</small>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0 small">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Date / Shift</th>
+                            <th>Completed By</th>
+                            <th>Zero Point</th>
+                            <th>Lube</th>
+                            <th>Safety</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for pm in pm_history %}
+                        <tr>
+                            <td>
+                                <strong>{{ pm.log_date }}</strong>
+                                <div class="text-muted" style="font-size: 0.75rem;">{{ pm.get_shift_display }}</div>
+                            </td>
+                            <td>
+                                {{ pm.completed_by.get_full_name|default:pm.completed_by.username }}
+                                <div class="text-muted" style="font-size: 0.75rem;">{{ pm.completed_by.employee_id }}</div>
+                            </td>
+                            <td>{% if pm.zero_point_verified %}<i class="bi bi-check-circle text-success"></i>{% else %}<i class="bi bi-x-circle text-danger"></i>{% endif %}</td>
+                            <td>{% if pm.lubrication_level_ok %}<i class="bi bi-check-circle text-success"></i>{% else %}<i class="bi bi-x-circle text-danger"></i>{% endif %}</td>
+                            <td>{% if pm.safety_interlocks_ok %}<i class="bi bi-check-circle text-success"></i>{% else %}<i class="bi bi-x-circle text-danger"></i>{% endif %}</td>
+                            <td>
+                                {% if pm.is_passed %}
+                                    <span class="badge bg-success">PASSED</span>
+                                {% else %}
+                                    <span class="badge bg-danger">FAILED</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-3">No PM logs recorded yet.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Station QR Plate & Physical Presence Test Info -->
+    <div class="col-lg-5">
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-dark text-white py-3 fw-bold">
+                <i class="bi bi-qr-code me-2 text-warning"></i>Physical Station QR Code Plate
+            </div>
+            <div class="card-body text-center p-4">
+                <p class="small text-muted mb-3">
+                    Under BRD Section 5.1, inspectors MUST physically scan this QR code plate mounted on the machine frame to begin inspection.
+                </p>
+
+                <!-- High-contrast simulated QR badge -->
+                <div class="qr-preview-box mb-3 d-inline-block">
+                    <div class="bg-white p-3 border border-3 border-dark rounded d-inline-block shadow-sm">
+                        <i class="bi bi-qr-code text-dark" style="font-size: 8rem; line-height: 1;"></i>
+                        <div class="font-monospace fw-bold mt-2 text-dark" style="font-size: 0.9rem;">
+                            {{ workstation.qr_code_identifier }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-center gap-2">
+                    <button class="btn btn-outline-primary btn-sm" onclick="navigator.clipboard.writeText('{{ workstation.qr_code_identifier }}'); alert('Station QR copied: {{ workstation.qr_code_identifier }}');">
+                        <i class="bi bi-clipboard me-1"></i> Copy QR Identifier
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="window.print();">
+                        <i class="bi bi-printer me-1"></i> Print Plate
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card bg-light border-0 shadow-sm p-3">
+            <h6 class="fw-bold text-dark"><i class="bi bi-shield-check text-primary me-2"></i>BRD Zero-Defect Rule:</h6>
+            <p class="small text-muted mb-0">
+                Job selection is strictly disabled unless today's daily PM checklist is signed off. No machinist or QA inspector can start operations or submit measurements without an active, verified machine PM.
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}

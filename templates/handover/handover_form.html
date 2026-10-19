@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block title %}Log Shift Handover - Zapuza Quality OS{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-9">
+        <div class="d-flex align-items-center justify-content-between mb-4 border-bottom pb-3">
+            <div>
+                <h2 class="h3 fw-bold mb-1 text-dark">
+                    <i class="bi bi-arrow-left-right text-primary me-2"></i>Log Digital Shift Handover
+                </h2>
+                <span class="text-muted small">
+                    BRD Section 12.2: Mandatory digital shift handovers capturing active work order status, tool wear, machine health, and pending quality checks.
+                </span>
+            </div>
+            <a href="{% url 'handover:handover_list' %}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1"></i> Back to Handover Logbook
+            </a>
+        </div>
+
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-dark text-white py-3">
+                <div class="fw-bold"><i class="bi bi-tablet me-2"></i>Station Tablet Handover Form</div>
+            </div>
+            <div class="card-body p-4">
+                <form method="post">
+                    {% csrf_token %}
+
+                    <h5 class="fw-bold text-dark border-bottom pb-2 mb-3">1. Station & Shift Transfer Details</h5>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-uppercase">Workstation: <span class="text-danger">*</span></label>
+                            <select name="workstation" class="form-select" required>
+                                <option value="">Select Workstation...</option>
+                                {% for ws in workstations %}
+                                <option value="{{ ws.id }}">{{ ws.machine_code }} - {{ ws.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold small text-uppercase">Outgoing Shift: <span class="text-danger">*</span></label>
+                            <select name="outgoing_shift" class="form-select" required>
+                                {% for code, label in shift_choices %}
+                                <option value="{{ code }}" {% if code == 'MORNING' %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold small text-uppercase">Incoming Shift: <span class="text-danger">*</span></label>
+                            <select name="incoming_shift" class="form-select" required>
+                                {% for code, label in shift_choices %}
+                                <option value="{{ code }}" {% if code == 'EVENING' %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <h5 class="fw-bold text-dark border-bottom pb-2 mb-3">2. Job & Production Counts</h5>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-uppercase">Active Job Traveler (In Progress):</label>
+                            <select name="active_traveler" class="form-select">
+                                <option value="">None / Station Idle at Changeover</option>
+                                {% for t in active_travelers %}
+                                <option value="{{ t.id }}">{{ t.traveler_barcode }} - {{ t.work_order.part.part_number }} (WO: {{ t.work_order.work_order_number }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold small text-uppercase">Acceptable Parts Produced: <span class="text-danger">*</span></label>
+                            <input type="number" name="parts_produced_count" class="form-control" value="0" min="0" required>
+                            <div class="form-text small">Good units completed on this shift.</div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold small text-uppercase">Defects / Scrapped Parts: <span class="text-danger">*</span></label>
+                            <input type="number" name="scrap_count" class="form-control" value="0" min="0" required>
+                            <div class="form-text small">Quarantined or rejected parts.</div>
+                        </div>
+                    </div>
+
+                    <h5 class="fw-bold text-dark border-bottom pb-2 mb-3">3. Machine Health & Tooling Status</h5>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-uppercase">Tool Wear & Offset Adjustments: <span class="text-danger">*</span></label>
+                            <textarea name="tool_wear_status" class="form-control" rows="3" required placeholder="Detail tool insert wear, drill/cutter replacements, offset adjustments made during shift..."></textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-uppercase">Machine Health & Operating Parameters: <span class="text-danger">*</span></label>
+                            <textarea name="machine_health_notes" class="form-control" rows="3" required placeholder="Spindle vibration, temperature, hydraulic pressure, coolant levels, lubrication status..."></textarea>
+                        </div>
+                    </div>
+
+                    <h5 class="fw-bold text-dark border-bottom pb-2 mb-3">4. Quality Alerts & Pending Checks</h5>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-uppercase">Open Quality Alerts / CTQ Warnings:</label>
+                            <textarea name="open_quality_alerts" class="form-control" rows="2" placeholder="Active CTQ warnings, first-piece clearances, surface finish alerts, or critical tolerance notes..."></textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-uppercase">Pending Inspections / PDI Reviews:</label>
+                            <textarea name="pending_pdi_reviews" class="form-control" rows="2" placeholder="Inspection checklists awaiting QA supervisor review or laboratory test results..."></textarea>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center border-top pt-3">
+                        <a href="{% url 'handover:handover_list' %}" class="btn btn-outline-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary btn-lg px-4">
+                            <i class="bi bi-check2-circle me-1"></i> Submit Handover for Sign-off
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

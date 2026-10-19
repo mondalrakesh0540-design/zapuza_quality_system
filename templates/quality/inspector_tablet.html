@@ -1,0 +1,360 @@
+{% extends "base.html" %}
+
+{% block title %}Floor Inspection Tablet - {{ operation.traveler.traveler_barcode }} - Zapuza Quality OS{% endblock %}
+
+{% block extra_head %}
+<style>
+    .param-card {
+        border-radius: 8px;
+        transition: all 0.2s ease-in-out;
+        border: 2px solid #dee2e6;
+    }
+    .param-card.in-tolerance {
+        border-color: #198754 !important;
+        background-color: #f0fff4 !important;
+    }
+    .param-card.out-of-tolerance {
+        border-color: #dc3545 !important;
+        background-color: #fff5f5 !important;
+    }
+    .param-card.ctq-card {
+        border-left: 6px solid #fd7e14 !important;
+    }
+    .blueprint-canvas-container {
+        position: relative;
+        display: inline-block;
+        max-width: 100%;
+        background-color: #f8f9fa;
+        border: 2px solid #0f2c59;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    .blueprint-img {
+        width: 100%;
+        height: auto;
+        display: block;
+        user-select: none;
+    }
+    .blueprint-pin-marker {
+        position: absolute;
+        transform: translate(-50%, -50%);
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        font-size: 0.85rem;
+        color: #fff;
+        background-color: #0d6efd;
+        border: 2px solid #ffffff;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+        cursor: pointer;
+        transition: transform 0.15s ease-in-out;
+        z-index: 10;
+    }
+    .blueprint-pin-marker.pin-ctq {
+        background-color: #fd7e14 !important;
+        box-shadow: 0 0 10px rgba(253, 126, 20, 0.8);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Tablet Navigation Header -->
+<div class="card shadow-sm border-0 mb-3 bg-dark text-white">
+    <div class="card-body p-3">
+        <div class="d-flex flex-wrap justify-content-between align-items-center">
+            <div>
+                <span class="badge bg-primary font-monospace fs-6 me-2">{{ operation.traveler.traveler_barcode }}</span>
+                <span class="badge bg-warning text-dark font-monospace fs-6 me-2">Op {{ operation.operation_sequence }}</span>
+                <h4 class="fw-bold d-inline align-middle mb-0">{{ operation.operation_name }}</h4>
+                <div class="text-white-50 small mt-1">
+                    Work Order: <strong class="text-white font-monospace">{{ operation.traveler.work_order.work_order_number }}</strong>
+                    &bull; Part: <strong class="text-white">{{ operation.traveler.work_order.part.part_number }}</strong> ({{ operation.traveler.work_order.part.part_name }})
+                    &bull; Machine: <strong class="text-white font-monospace">{{ operation.workstation.machine_code }}</strong>
+                </div>
+            </div>
+            <div class="text-end mt-2 mt-md-0">
+                <span class="badge bg-light text-dark font-monospace px-3 py-2">
+                    <i class="bi bi-file-earmark-check text-primary me-1"></i>{{ revision.template.template_code }} [{{ revision.revision_label }}]
+                </span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Left Column: Blueprint Viewer -->
+    <div class="col-lg-5">
+        <div class="card shadow-sm border-0 sticky-top" style="top: 80px;">
+            <div class="card-header bg-white py-3 fw-bold d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-pin-map text-warning me-2"></i>Engineering Drawing & Blueprint Pins</span>
+                <span class="badge bg-secondary">BRD Section 4.2</span>
+            </div>
+            <div class="card-body p-2 text-center">
+                {% if blueprints %}
+                    {% with bp=blueprints.first %}
+                    <div class="blueprint-canvas-container" id="blueprintContainer">
+                        <img src="{{ bp.drawing_file.url }}" class="blueprint-img" alt="{{ bp.title }}">
+                        {% for pin in bp.pins.all %}
+                        <div class="blueprint-pin-marker {% if pin.parameter and pin.parameter.is_ctq %}pin-ctq{% endif %}"
+                             style="left: {{ pin.percentage_x }}%; top: {{ pin.percentage_y }}%;"
+                             title="{{ pin.label }}"
+                             onclick="scrollToParam('param-card-{{ pin.parameter.id }}');">
+                            {{ pin.pin_number }}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div class="small text-muted mt-2">
+                        <i class="bi bi-hand-index-thumb me-1"></i> Tap any numbered pin on the drawing to jump directly to its measurement field.
+                    </div>
+                    {% endwith %}
+                {% else %}
+                    <div class="p-4 text-center text-muted">
+                        <i class="bi bi-image fs-1 d-block mb-2"></i>
+                        No engineering blueprint image uploaded for this checklist revision.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: Measurement Capture Form -->
+    <div class="col-lg-7">
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-white py-3 fw-bold d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-rulers text-primary me-2"></i>Inspection Parameter Measurements ({{ parameters.count }})</span>
+                <span class="small text-muted">Real-Time Tolerance Validation</span>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST" enctype="multipart/form-data" id="inspectionTabletForm">
+                    {% csrf_token %}
+
+                    {% for p in parameters %}
+                    <div class="card param-card mb-3 p-3 {% if p.is_ctq %}ctq-card{% endif %}" id="param-card-{{ p.id }}" data-param-type="{{ p.parameter_type }}" data-nominal="{{ p.nominal_value|default:'' }}" data-upper="{{ p.upper_limit|default:'' }}" data-lower="{{ p.lower_limit|default:'' }}" data-threshold-type="{{ p.threshold_type|default:'' }}" data-threshold-limit="{{ p.threshold_limit|default:'' }}" data-is-ctq="{% if p.is_ctq %}true{% else %}false{% endif %}">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div>
+                                <strong class="fs-6">{{ p.sequence_order }}. {{ p.parameter_name }}</strong>
+                                {% if p.is_ctq %}
+                                    <span class="badge bg-warning text-dark ms-2 border border-dark">
+                                        <i class="bi bi-exclamation-triangle-fill me-1"></i>CTQ ZERO-CONCESSION
+                                    </span>
+                                {% endif %}
+                                {% if p.pin %}
+                                    <span class="badge bg-primary-subtle text-primary border ms-1">
+                                        <i class="bi bi-pin-angle me-1"></i>Pin {{ p.pin.pin_number }}
+                                    </span>
+                                {% endif %}
+                            </div>
+                            <span class="badge bg-light text-dark border">{{ p.get_parameter_type_display }}</span>
+                        </div>
+
+                        <!-- Tolerance Specification Display -->
+                        <div class="alert alert-light border py-1 px-2 small mb-2 d-flex justify-content-between">
+                            <span>
+                                {% if p.parameter_type == 'DIMENSION' %}
+                                    <strong>Target:</strong> {{ p.nominal_value }} {{ p.unit }} &bull;
+                                    <strong>Range:</strong> [{{ p.lower_limit }} to {{ p.upper_limit }} {{ p.unit }}]
+                                {% elif p.parameter_type == 'THRESHOLD' %}
+                                    <strong>{{ p.get_threshold_type_display }}:</strong> {{ p.threshold_limit }} {{ p.unit }}
+                                {% else %}
+                                    Visual Inspection Check
+                                {% endif %}
+                            </span>
+                            <span class="text-muted font-monospace">Req: {{ p.get_required_tool_type_display }}</span>
+                        </div>
+
+                        <!-- Tool Selection -->
+                        <div class="row g-2 mb-2">
+                            <div class="col-md-7">
+                                <label class="form-label small fw-bold text-muted mb-1">Measuring Tool Used *</label>
+                                <select name="tool_{{ p.id }}" class="form-select form-select-sm font-monospace" required>
+                                    <option value="">-- Select Calibrated Measuring Instrument --</option>
+                                    {% for t in tools %}
+                                        {% if t.tool_type == p.required_tool_type or p.required_tool_type == 'OTHER' %}
+                                        <option value="{{ t.id }}" {% if not t.is_calibration_valid %}disabled class="text-danger"{% endif %}>
+                                            {{ t.tool_id }} ({{ t.name }}) - Cal Due: {{ t.calibration_due_date|date:"Y-m-d" }} {% if not t.is_calibration_valid %}[EXPIRED]{% endif %}
+                                        </option>
+                                        {% endif %}
+                                    {% endfor %}
+                                    {% for t in tools %}
+                                        {% if t.tool_type != p.required_tool_type and p.required_tool_type != 'OTHER' %}
+                                        <option value="{{ t.id }}" {% if not t.is_calibration_valid %}disabled class="text-danger"{% endif %}>
+                                            {{ t.tool_id }} ({{ t.name }}) [Alt Tool]
+                                        </option>
+                                        {% endif %}
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <!-- Value Input Field -->
+                            <div class="col-md-5">
+                                <label class="form-label small fw-bold text-muted mb-1">Measured Reading *</label>
+                                {% if p.parameter_type == 'VISUAL' %}
+                                    <div class="btn-group w-100" role="group">
+                                        <input type="radio" class="btn-check" name="param_{{ p.id }}" id="visual_pass_{{ p.id }}" value="PASS" checked onchange="validateParamInput('{{ p.id }}')">
+                                        <label class="btn btn-outline-success btn-sm" for="visual_pass_{{ p.id }}"><i class="bi bi-check-circle me-1"></i>PASS</label>
+                                        <input type="radio" class="btn-check" name="param_{{ p.id }}" id="visual_fail_{{ p.id }}" value="FAIL" onchange="validateParamInput('{{ p.id }}')">
+                                        <label class="btn btn-outline-danger btn-sm" for="visual_fail_{{ p.id }}"><i class="bi bi-x-circle me-1"></i>FAIL</label>
+                                    </div>
+                                {% else %}
+                                    <div class="input-group input-group-sm">
+                                        <input type="number" step="0.001" name="param_{{ p.id }}" id="input_{{ p.id }}"
+                                               class="form-control font-monospace fw-bold reading-input"
+                                               placeholder="Enter {{ p.unit }}" required
+                                               oninput="validateParamInput('{{ p.id }}')">
+                                        <span class="input-group-text">{{ p.unit }}</span>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Real-time Tolerance Feedback Alert -->
+                        <div id="feedback_{{ p.id }}" class="small fw-semibold mt-1 d-none"></div>
+                    </div>
+                    {% endfor %}
+
+                    <!-- Mandatory Defect Photos Section (Appears when any parameter fails) -->
+                    <div id="defectPhotoSection" class="card border-danger mb-4 d-none">
+                        <div class="card-header bg-danger text-white py-2 fw-bold d-flex justify-content-between align-items-center">
+                            <span><i class="bi bi-camera-fill me-2"></i>Mandatory Defect Photo Evidence (BRD Section 5.4)</span>
+                            <span class="badge bg-white text-danger">Required For Out-of-Spec Entries</span>
+                        </div>
+                        <div class="card-body p-3 bg-light">
+                            <p class="small text-danger fw-semibold mb-2">
+                                <i class="bi bi-exclamation-octagon-fill me-1"></i>
+                                Out-of-tolerance reading detected! Under BRD Section 5.4, you must upload photographic evidence of the defect or gauge reading before submitting.
+                            </p>
+                            <div class="mb-2">
+                                <label class="form-label small fw-bold">Attach Defect Photos *</label>
+                                <input type="file" name="defect_photos" id="defectPhotoInput" class="form-control form-control-sm" accept="image/*" multiple>
+                                <div class="form-text small">Accepted formats: JPG, PNG, WEBP (Max 5MB per file).</div>
+                            </div>
+                            <div>
+                                <label class="form-label small fw-bold">Defect Caption / Description</label>
+                                <input type="text" name="photo_caption" class="form-control form-control-sm" placeholder="e.g. Micrometer reading 25.075 mm showing oversize journal">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Inspector Notes -->
+                    <div class="mb-3">
+                        <label for="inspector_notes" class="form-label small fw-bold text-muted text-uppercase">Inspector Floor Remarks / Observations</label>
+                        <textarea name="inspector_notes" id="inspector_notes" class="form-control" rows="2" placeholder="e.g. First piece inspection passed. Setup verified on CNC-04."></textarea>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <div class="d-flex gap-3 pt-3 border-top">
+                        <a href="{% url 'quality:floor_scan' %}" class="btn btn-outline-secondary w-50">Cancel</a>
+                        <button type="submit" class="btn btn-primary w-50 btn-lg shadow-sm" style="background-color: #0f2c59; border-color: #0f2c59;">
+                            <i class="bi bi-send-check me-2"></i> Submit Inspection for Review
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function scrollToParam(cardId) {
+    const card = document.getElementById(cardId);
+    if (card) {
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        card.classList.add('shadow-lg');
+        setTimeout(() => card.classList.remove('shadow-lg'), 1800);
+    }
+}
+
+function checkAllParameters() {
+    let anyFailure = false;
+    document.querySelectorAll('.param-card').forEach(card => {
+        if (card.classList.contains('out-of-tolerance')) {
+            anyFailure = true;
+        }
+    });
+
+    const photoSec = document.getElementById('defectPhotoSection');
+    const photoInput = document.getElementById('defectPhotoInput');
+    if (anyFailure) {
+        photoSec.classList.remove('d-none');
+        photoInput.setAttribute('required', 'required');
+    } else {
+        photoSec.classList.add('d-none');
+        photoInput.removeAttribute('required');
+    }
+}
+
+function validateParamInput(paramId) {
+    const card = document.getElementById(`param-card-${paramId}`);
+    const feedback = document.getElementById(`feedback_${paramId}`);
+    const paramType = card.dataset.paramType;
+
+    let isPass = true;
+    let message = "";
+
+    if (paramType === 'VISUAL') {
+        const passRadio = document.getElementById(`visual_pass_${paramId}`);
+        isPass = passRadio.checked;
+        message = isPass ? "Visual check: PASS" : "Visual check: DEFECT DETECTED";
+    } else {
+        const input = document.getElementById(`input_${paramId}`);
+        const valStr = input.value.trim();
+        if (valStr === "") {
+            card.classList.remove('in-tolerance', 'out-of-tolerance');
+            feedback.classList.add('d-none');
+            checkAllParameters();
+            return;
+        }
+
+        const val = parseFloat(valStr);
+        if (paramType === 'DIMENSION') {
+            const upper = parseFloat(card.dataset.upper);
+            const lower = parseFloat(card.dataset.lower);
+            if (!isNaN(lower) && val < lower) {
+                isPass = false;
+                message = `Below lower limit (${lower})`;
+            } else if (!isNaN(upper) && val > upper) {
+                isPass = false;
+                message = `Exceeds upper limit (${upper})`;
+            } else {
+                isPass = true;
+                message = `In tolerance [${lower} to ${upper}]`;
+            }
+        } else if (paramType === 'THRESHOLD') {
+            const threshType = card.dataset.thresholdType;
+            const threshLimit = parseFloat(card.dataset.thresholdLimit);
+            if (threshType === 'MAX' && val > threshLimit) {
+                isPass = false;
+                message = `Exceeds maximum allowable limit (${threshLimit})`;
+            } else if (threshType === 'MIN' && val < threshLimit) {
+                isPass = false;
+                message = `Below minimum allowable limit (${threshLimit})`;
+            } else {
+                isPass = true;
+                message = "Threshold limit satisfied";
+            }
+        }
+    }
+
+    feedback.classList.remove('d-none', 'text-success', 'text-danger');
+    if (isPass) {
+        card.classList.add('in-tolerance');
+        card.classList.remove('out-of-tolerance');
+        feedback.classList.add('text-success');
+        feedback.innerHTML = `<i class="bi bi-check-circle-fill me-1"></i> ${message}`;
+    } else {
+        card.classList.add('out-of-tolerance');
+        card.classList.remove('in-tolerance');
+        feedback.classList.add('text-danger');
+        feedback.innerHTML = `<i class="bi bi-x-circle-fill me-1"></i> OUT OF SPEC: ${message}`;
+    }
+
+    checkAllParameters();
+}
+</script>
+{% endblock %}

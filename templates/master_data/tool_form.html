@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}Register New Gauge - Zapuza Quality OS{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard:index' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'master_data:tool_list' %}">Tool Register</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Register Gauge</li>
+    </ol>
+</nav>
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-dark text-white p-4" style="background-color: #0f2c59 !important;">
+                <h4 class="fw-bold mb-0"><i class="bi bi-plus-circle me-2"></i>Register Measuring Gauge in Master Register</h4>
+                <small class="text-white-50">BRD Section 2.1(4) Measuring Gauges & Equipment Register</small>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST">
+                    {% csrf_token %}
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="tool_id" class="form-label fw-bold text-uppercase small text-muted">Digital Tool ID *</label>
+                            <input type="text" name="tool_id" id="tool_id" class="form-control font-monospace" placeholder="e.g. VC-104 or MIC-05" required>
+                            <small class="text-muted">Unique ID scanned or selected during inspection.</small>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="name" class="form-label fw-bold text-uppercase small text-muted">Instrument Description *</label>
+                            <input type="text" name="name" id="name" class="form-control" placeholder="e.g. Mitutoyo Digital Caliper 0-150mm" required>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="tool_type" class="form-label fw-bold text-uppercase small text-muted">Gauge Category *</label>
+                            <select name="tool_type" id="tool_type" class="form-select" required>
+                                {% for code, label in tool_types %}
+                                    <option value="{{ code }}">{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="serial_number" class="form-label fw-bold text-uppercase small text-muted">Manufacturer Serial No *</label>
+                            <input type="text" name="serial_number" id="serial_number" class="form-control font-monospace" placeholder="e.g. SN-883492" required>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="calibration_date" class="form-label fw-bold text-uppercase small text-muted">Calibration Date *</label>
+                            <input type="date" name="calibration_date" id="calibration_date" class="form-control" required>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="calibration_expiry_date" class="form-label fw-bold text-uppercase small text-muted">Calibration Expiry Date *</label>
+                            <input type="date" name="calibration_expiry_date" id="calibration_expiry_date" class="form-control" required>
+                            <small class="text-muted">Server enforces lockout if expired.</small>
+                        </div>
+
+                        <div class="col-md-12">
+                            <label for="storage_location" class="form-label fw-bold text-uppercase small text-muted">Storage Location</label>
+                            <input type="text" name="storage_location" id="storage_location" class="form-control" value="Tool Crib - Bay A" placeholder="e.g. Tool Crib Shelf B-04">
+                        </div>
+
+                        <div class="col-md-12">
+                            <label for="notes" class="form-label fw-bold text-uppercase small text-muted">Calibration Notes / Traceability Standards</label>
+                            <textarea name="notes" id="notes" rows="2" class="form-control" placeholder="e.g. NABL certified lab reference cert #CAL-2026-904..."></textarea>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-3 mt-4 pt-3 border-top">
+                        <a href="{% url 'master_data:tool_list' %}" class="btn btn-outline-secondary w-50">Cancel</a>
+                        <button type="submit" class="btn btn-primary w-50 btn-lg shadow-sm" style="background-color: #0f2c59; border-color: #0f2c59;">
+                            <i class="bi bi-save me-2"></i> Save to Equipment Register
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

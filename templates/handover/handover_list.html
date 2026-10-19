@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}Digital Shift Handover Logbook - Zapuza Quality OS{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between mb-4 border-bottom pb-3">
+    <div>
+        <h2 class="h3 fw-bold mb-1 text-dark">
+            <i class="bi bi-arrow-left-right text-primary me-2"></i>Digital Shift Handover Logbook
+        </h2>
+        <span class="text-muted small">
+            BRD Section 12.2: Mandatory digital shift handovers between outgoing and incoming operators capturing open job status, machine health, tooling wear, and pending quality checks.
+        </span>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'handover:handover_create' %}" class="btn btn-primary">
+            <i class="bi bi-plus-circle me-1"></i> Log Shift Handover
+        </a>
+    </div>
+</div>
+
+<!-- Workstation & Status Filters -->
+<div class="card shadow-sm border-0 mb-4 bg-light">
+    <div class="card-body p-3">
+        <form method="get" class="row g-3 align-items-center">
+            <div class="col-md-5">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text"><i class="bi bi-cpu me-1"></i>Workstation</span>
+                    <select name="workstation" class="form-select" onchange="this.form.submit()">
+                        <option value="">All Workstations</option>
+                        {% for ws in workstations %}
+                        <option value="{{ ws.id }}" {% if selected_ws == ws.id|stringformat:"s" %}selected{% endif %}>
+                            {{ ws.machine_code }} - {{ ws.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="col-md-5">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text"><i class="bi bi-check-circle me-1"></i>Status</span>
+                    <select name="status" class="form-select" onchange="this.form.submit()">
+                        <option value="">All Statuses</option>
+                        <option value="PENDING_ACK" {% if selected_status == 'PENDING_ACK' %}selected{% endif %}>Awaiting Acknowledgment</option>
+                        <option value="ACKNOWLEDGED" {% if selected_status == 'ACKNOWLEDGED' %}selected{% endif %}>Acknowledged & Signed Off</option>
+                    </select>
+                </div>
+            </div>
+            <div class="col-md-2 text-end">
+                <a href="{% url 'handover:handover_list' %}" class="btn btn-sm btn-outline-secondary w-100">Reset</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Handover Logs Table -->
+<div class="card shadow-sm border-0">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-dark small text-uppercase">
+                <tr>
+                    <th>Log No / Date</th>
+                    <th>Workstation</th>
+                    <th>Shift Transfer</th>
+                    <th>Outgoing Operator</th>
+                    <th>Production & Scrap</th>
+                    <th>Acknowledgment</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td>
+                        <span class="fw-bold font-monospace text-dark">{{ log.log_number }}</span>
+                        <div class="small text-muted">{{ log.created_at|date:"Y-m-d H:i" }}</div>
+                    </td>
+                    <td>
+                        <div class="fw-bold">{{ log.workstation.machine_code }}</div>
+                        <div class="small text-muted">{{ log.workstation.name }}</div>
+                    </td>
+                    <td>
+                        <span class="badge bg-secondary">{{ log.get_outgoing_shift_display }}</span>
+                        <i class="bi bi-arrow-right mx-1 text-muted"></i>
+                        <span class="badge bg-primary">{{ log.get_incoming_shift_display }}</span>
+                    </td>
+                    <td>
+                        <div class="fw-bold">{{ log.outgoing_operator.employee_id }}</div>
+                        <div class="small text-muted">{{ log.outgoing_operator.get_full_name|default:log.outgoing_operator.username }}</div>
+                    </td>
+                    <td>
+                        <div><strong class="text-success">{{ log.parts_produced_count }}</strong> Parts Produced</div>
+                        <div class="small text-danger"><strong>{{ log.scrap_count }}</strong> Scrapped</div>
+                    </td>
+                    <td>
+                        {% if log.is_acknowledged %}
+                            <span class="badge bg-success"><i class="bi bi-check2-circle me-1"></i>Acknowledged</span>
+                            <div class="small text-muted font-monospace">by {{ log.incoming_operator.employee_id }}</div>
+                        {% else %}
+                            <span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split me-1"></i>Pending Sign-off</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        <a href="{% url 'handover:handover_detail' log.id %}" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-eye me-1"></i> View / Sign Off
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center py-5 text-muted">
+                        <i class="bi bi-arrow-left-right fs-2 d-block mb-2 text-secondary"></i>
+                        No shift handover logs found matching criteria.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

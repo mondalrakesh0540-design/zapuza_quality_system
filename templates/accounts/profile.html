@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block title %}User Profile - Zapuza Quality OS{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-4 mb-4">
+        <div class="card shadow-sm border-0">
+            <div class="card-body text-center p-4">
+                <div class="d-inline-flex p-3 rounded-circle bg-light border mb-3">
+                    <i class="bi bi-person-circle fs-1 text-primary"></i>
+                </div>
+                <h4 class="fw-bold mb-1">{{ user.get_full_name|default:user.username }}</h4>
+                <p class="text-muted mb-2">Badge / Employee ID: <strong>{{ user.employee_id }}</strong></p>
+                <span class="badge badge-role-{{ user.role }} fs-6 px-3 py-2 rounded-pill">
+                    {{ user.get_role_display }}
+                </span>
+
+                <hr class="my-4">
+
+                <div class="text-start">
+                    <div class="mb-2">
+                        <small class="text-muted d-block">Shift Preference:</small>
+                        <span class="fw-semibold">{{ user.get_shift_preference_display }}</span>
+                    </div>
+                    <div class="mb-2">
+                        <small class="text-muted d-block">Contact Phone:</small>
+                        <span class="fw-semibold">{{ user.phone_number|default:"Not specified" }}</span>
+                    </div>
+                    <div class="mb-2">
+                        <small class="text-muted d-block">Shift Status:</small>
+                        {% if user.is_shift_active %}
+                            <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Active on Floor</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Off Duty</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-white py-3 fw-bold">
+                <i class="bi bi-shield-check me-2 text-primary"></i>Authorized Role Responsibilities & Permissions
+            </div>
+            <div class="card-body p-4">
+                <div class="row g-3">
+                    <div class="col-sm-6">
+                        <div class="border rounded p-3 h-100 {% if user.can_manage_templates %}bg-light border-primary{% else %}text-muted{% endif %}">
+                            <div class="fw-bold"><i class="bi bi-{% if user.can_manage_templates %}check-circle-fill text-success{% else %}x-circle text-muted{% endif %} me-2"></i>Inspection Template Design</div>
+                            <small>Create checklist templates, upload PDF blueprints & pin tolerances.</small>
+                        </div>
+                    </div>
+                    <div class="col-sm-6">
+                        <div class="border rounded p-3 h-100 {% if user.can_approve_templates %}bg-light border-primary{% else %}text-muted{% endif %}">
+                            <div class="fw-bold"><i class="bi bi-{% if user.can_approve_templates %}check-circle-fill text-success{% else %}x-circle text-muted{% endif %} me-2"></i>Template Approval Gate</div>
+                            <small>Formally approve new revisions for shopfloor release.</small>
+                        </div>
+                    </div>
+                    <div class="col-sm-6">
+                        <div class="border rounded p-3 h-100 {% if user.can_perform_inspection %}bg-light border-primary{% else %}text-muted{% endif %}">
+                            <div class="fw-bold"><i class="bi bi-{% if user.can_perform_inspection %}check-circle-fill text-success{% else %}x-circle text-muted{% endif %} me-2"></i>Floor Inspection Execution</div>
+                            <small>Execute locked tablet measurement entry & defect photo capture.</small>
+                        </div>
+                    </div>
+                    <div class="col-sm-6">
+                        <div class="border rounded p-3 h-100 {% if user.can_sign_off_pm %}bg-light border-primary{% else %}text-muted{% endif %}">
+                            <div class="fw-bold"><i class="bi bi-{% if user.can_sign_off_pm %}check-circle-fill text-success{% else %}x-circle text-muted{% endif %} me-2"></i>Daily PM Sign-Off</div>
+                            <small>Verify safety zero-points and sign off daily machine PM.</small>
+                        </div>
+                    </div>
+                    <div class="col-sm-6">
+                        <div class="border rounded p-3 h-100 {% if user.can_review_inspections %}bg-light border-primary{% else %}text-muted{% endif %}">
+                            <div class="fw-bold"><i class="bi bi-{% if user.can_review_inspections %}check-circle-fill text-success{% else %}x-circle text-muted{% endif %} me-2"></i>Supervisor Approval & Review</div>
+                            <small>Review pending inspection checklists and route failing lots to Quarantine.</small>
+                        </div>
+                    </div>
+                    <div class="col-sm-6">
+                        <div class="border rounded p-3 h-100 {% if user.can_issue_concessions %}bg-light border-primary{% else %}text-muted{% endif %}">
+                            <div class="fw-bold"><i class="bi bi-{% if user.can_issue_concessions %}check-circle-fill text-success{% else %}x-circle text-muted{% endif %} me-2"></i>Concession Authorization</div>
+                            <small>Issue official concessions for non-CTQ parameters with engineering rationale.</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white py-3 fw-bold">
+                <i class="bi bi-clock-history me-2 text-primary"></i>Your Recent Activity Trail
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Time</th>
+                            <th>Action</th>
+                            <th>Target</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for audit in recent_audits %}
+                        <tr>
+                            <td class="small text-nowrap">{{ audit.timestamp|date:"M d, H:i:s" }}</td>
+                            <td><span class="badge bg-secondary">{{ audit.get_action_display }}</span></td>
+                            <td class="small">{{ audit.model_name }}: {{ audit.object_repr|default:audit.object_id }}</td>
+                            <td class="small text-muted">{{ audit.details|truncatechars:60 }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-3">No activity recorded yet for your account.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

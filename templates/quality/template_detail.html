@@ -1,0 +1,452 @@
+{% extends "base.html" %}
+
+{% block title %}{{ template.template_code }} [{{ revision.revision_label }}] - Inspection Studio{% endblock %}
+
+{% block extra_head %}
+<style>
+    .blueprint-canvas-container {
+        position: relative;
+        display: inline-block;
+        max-width: 100%;
+        background-color: #f8f9fa;
+        border: 2px dashed #0f2c59;
+        border-radius: 8px;
+        overflow: hidden;
+        cursor: crosshair;
+    }
+    .blueprint-img {
+        width: 100%;
+        height: auto;
+        display: block;
+        user-select: none;
+    }
+    .blueprint-pin-marker {
+        position: absolute;
+        transform: translate(-50%, -50%);
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        font-size: 0.85rem;
+        color: #fff;
+        background-color: #0d6efd;
+        border: 2px solid #ffffff;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+        cursor: pointer;
+        transition: transform 0.15s ease-in-out;
+        z-index: 10;
+    }
+    .blueprint-pin-marker:hover {
+        transform: translate(-50%, -50%) scale(1.25);
+        z-index: 20;
+    }
+    .blueprint-pin-marker.pin-ctq {
+        background-color: #fd7e14 !important;
+        border-color: #ffffff;
+        box-shadow: 0 0 10px rgba(253, 126, 20, 0.8);
+    }
+    .highlight-param-row {
+        background-color: #fff3cd !important;
+        transition: background-color 0.5s ease;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard:index' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'quality:template_list' %}">Checklist Studio</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{{ template.template_code }}</li>
+    </ol>
+</nav>
+
+<!-- Template Header -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body p-4">
+        <div class="d-flex flex-wrap justify-content-between align-items-center">
+            <div>
+                <span class="badge bg-dark font-monospace fs-6 me-2">{{ template.template_code }}</span>
+                <span class="badge bg-primary fs-6 me-2">{{ revision.revision_label }}</span>
+                <h3 class="fw-bold d-inline align-middle">{{ template.title }}</h3>
+                <div class="text-muted small mt-1">
+                    Component: <strong>{{ template.part.part_number }}</strong> ({{ template.part.part_name }}) &bull; Drawing: <strong>{{ template.part.drawing_number }}</strong> &bull; Type: <strong>{{ template.get_template_type_display }}</strong>
+                </div>
+            </div>
+            <div class="mt-2 mt-md-0 d-flex gap-2 align-items-center">
+                {% if revision.status == 'APPROVED' %}
+                    <span class="badge bg-success fs-6 px-3 py-2">
+                        <i class="bi bi-shield-check me-1"></i>Approved by {{ revision.approved_by.employee_id }} ({{ revision.approved_at|date:"Y-m-d" }})
+                    </span>
+                {% elif revision.status == 'DRAFT' %}
+                    <span class="badge bg-warning text-dark fs-6 px-3 py-2">
+                        <i class="bi bi-pencil me-1"></i>Draft (Work in Progress)
+                    </span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Left Column: Interactive Blueprint Pinning Studio -->
+    <div class="col-lg-7">
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-dark text-white py-3 d-flex justify-content-between align-items-center">
+                <span class="fw-bold"><i class="bi bi-pin-map text-warning me-2"></i>Interactive Blueprint Pinning Studio</span>
+                <span class="badge bg-warning text-dark">BRD Section 4.2</span>
+            </div>
+            <div class="card-body p-3 text-center">
+                {% if blueprints %}
+                    {% with bp=blueprints.first %}
+                    <div class="alert alert-info py-2 px-3 small d-flex align-items-center justify-content-between mb-3 text-start">
+                        <div>
+                            <i class="bi bi-info-circle-fill me-1"></i>
+                            <strong>Click anywhere on the blueprint below</strong> to drop an inspection pin. CTQ parameters highlight in orange.
+                        </div>
+                        <span class="badge bg-primary">{{ bp.pins.count }} Active Pins</span>
+                    </div>
+
+                    <!-- Interactive Pinning Area -->
+                    <div class="blueprint-canvas-container" id="blueprintContainer" data-blueprint-id="{{ bp.id }}">
+                        <img src="{{ bp.drawing_file.url }}" id="blueprintImg" class="blueprint-img" alt="{{ bp.title }}">
+                        
+                        <!-- Render Existing Pins -->
+                        {% for pin in bp.pins.all %}
+                        <div class="blueprint-pin-marker {% if pin.parameter and pin.parameter.is_ctq %}pin-ctq{% endif %}"
+                             style="left: {{ pin.percentage_x }}%; top: {{ pin.percentage_y }}%;"
+                             title="{{ pin.label }}"
+                             onclick="highlightParam('param-row-{{ pin.parameter.id }}');">
+                            {{ pin.pin_number }}
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="mt-3 text-start small text-muted">
+                        <strong>Drawing File:</strong> {{ bp.title }} &bull; <a href="{{ bp.drawing_file.url }}" target="_blank">Open Full Image</a>
+                    </div>
+                    {% endwith %}
+                {% else %}
+                    <!-- Upload Blueprint Form -->
+                    <div class="p-4 border rounded bg-light text-center">
+                        <i class="bi bi-file-earmark-arrow-up fs-1 text-primary mb-2 d-block"></i>
+                        <h5 class="fw-bold">Upload Engineering Drawing Blueprint</h5>
+                        <p class="text-muted small mb-3">Upload drawing image (PNG, JPG, SVG) to enable interactive blueprint pinning.</p>
+                        {% if not revision.is_locked and user.can_manage_templates %}
+                        <form method="POST" action="{% url 'quality:blueprint_upload' revision_id=revision.id %}" enctype="multipart/form-data" class="d-inline-block text-start">
+                            {% csrf_token %}
+                            <div class="mb-2">
+                                <input type="text" name="title" class="form-control" placeholder="Sheet Title (e.g. Machining Dimensions)" required>
+                            </div>
+                            <div class="mb-3">
+                                <input type="file" name="drawing_file" class="form-control" accept="image/*,.pdf" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">Upload Blueprint</button>
+                        </form>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Quality Manager Approval Card -->
+        {% if not revision.is_locked and user.can_approve_templates %}
+        <div class="card shadow-sm border-2 border-success mb-4">
+            <div class="card-header bg-success text-white py-3 fw-bold">
+                <i class="bi bi-patch-check-fill me-2"></i>Quality Manager Formal Approval Gate
+            </div>
+            <div class="card-body p-4">
+                <p class="small text-muted mb-3">
+                    BRD Section 4.1: Once approved, this inspection checklist template is deployed to the shopfloor and locked from further changes.
+                </p>
+                <form method="POST" action="{% url 'quality:template_revision_approve' revision_id=revision.id %}">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="approval_notes" class="form-label small fw-bold text-muted text-uppercase">Approval Review Notes</label>
+                        <textarea name="approval_notes" id="approval_notes" rows="2" class="form-control" placeholder="Confirming engineering drawing alignment and CTQ tolerances..."></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-success btn-lg w-100">
+                        <i class="bi bi-shield-check me-2"></i> Formally Approve & Release Revision [{{ revision.revision_label }}]
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Right Column: Parameters Table & Add Parameter Form -->
+    <div class="col-lg-5">
+        <!-- Add Parameter Card -->
+        {% if not revision.is_locked and user.can_manage_templates %}
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-white py-3 fw-bold">
+                <i class="bi bi-plus-circle text-primary me-2"></i>Add Inspection Parameter
+            </div>
+            <div class="card-body p-3">
+                <form method="POST" action="{% url 'quality:parameter_create' revision_id=revision.id %}">
+                    {% csrf_token %}
+                    <div class="mb-2">
+                        <label class="form-label small fw-bold text-muted">Parameter Description *</label>
+                        <input type="text" name="parameter_name" class="form-control" placeholder="e.g. Shaft Journal Diameter Ø25.00" required>
+                    </div>
+                    
+                    <div class="row g-2 mb-2">
+                        <div class="col-6">
+                            <label class="form-label small fw-bold text-muted">Type *</label>
+                            <select name="parameter_type" id="paramTypeSelect" class="form-select form-select-sm" onchange="toggleParamInputs()">
+                                <option value="DIMENSION">Dimension (+/- Tol)</option>
+                                <option value="THRESHOLD">Threshold (Min/Max)</option>
+                                <option value="VISUAL">Visual Pass/Fail</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-bold text-muted">Unit</label>
+                            <input type="text" name="unit" class="form-control form-control-sm" value="mm">
+                        </div>
+                    </div>
+
+                    <!-- Dimension Inputs -->
+                    <div id="dimensionInputs" class="p-2 border rounded bg-light mb-2">
+                        <div class="row g-2">
+                            <div class="col-4">
+                                <label class="small text-muted">Nominal</label>
+                                <input type="number" step="0.001" name="nominal_value" class="form-control form-control-sm font-monospace" placeholder="25.000">
+                            </div>
+                            <div class="col-4">
+                                <label class="small text-muted">Upper (+)</label>
+                                <input type="number" step="0.001" name="upper_tolerance" class="form-control form-control-sm font-monospace" placeholder="+0.050">
+                            </div>
+                            <div class="col-4">
+                                <label class="small text-muted">Lower (-)</label>
+                                <input type="number" step="0.001" name="lower_tolerance" class="form-control form-control-sm font-monospace" placeholder="-0.020">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Threshold Inputs -->
+                    <div id="thresholdInputs" class="p-2 border rounded bg-light mb-2 d-none">
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <label class="small text-muted">Limit Type</label>
+                                <select name="threshold_type" class="form-select form-select-sm">
+                                    <option value="MAX">Maximum Allowable (<=)</option>
+                                    <option value="MIN">Minimum Allowable (>=)</option>
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <label class="small text-muted">Limit Value</label>
+                                <input type="number" step="0.001" name="threshold_limit" class="form-control form-control-sm font-monospace" placeholder="0.800">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-7">
+                            <label class="form-label small fw-bold text-muted">Required Measuring Tool</label>
+                            <select name="required_tool_type" class="form-select form-select-sm">
+                                <option value="CALIPER">Vernier / Digital Caliper</option>
+                                <option value="MICROMETER">Outside / Inside Micrometer</option>
+                                <option value="HEIGHT_GAUGE">Digital Height Gauge</option>
+                                <option value="PLUG_GAUGE">Thread / Pin Plug Gauge</option>
+                                <option value="CMM">CMM Machine</option>
+                                <option value="OTHER">Other / Visual</option>
+                            </select>
+                        </div>
+                        <div class="col-5 d-flex align-items-center pt-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="is_ctq" id="is_ctq">
+                                <label class="form-check-label fw-bold text-warning-emphasis small" for="is_ctq">
+                                    CTQ Priority
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-outline-primary w-100 btn-sm">
+                        <i class="bi bi-plus-circle me-1"></i> Add Parameter
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Parameters List Table -->
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white py-3 fw-bold d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-list-check text-primary me-2"></i>Inspection Parameters ({{ parameters.count }})</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0 small">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>Parameter & Specification</th>
+                            <th>Tool</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in parameters %}
+                        <tr id="param-row-{{ p.id }}">
+                            <td class="fw-bold">{{ p.sequence_order }}</td>
+                            <td>
+                                <div class="fw-semibold">
+                                    {{ p.parameter_name }}
+                                    {% if p.is_ctq %}
+                                        <span class="badge bg-warning text-dark border ms-1">CTQ</span>
+                                    {% endif %}
+                                </div>
+                                <div class="text-muted small">
+                                    {% if p.parameter_type == 'DIMENSION' %}
+                                        Target: {{ p.nominal_value }} {{ p.unit }} [{{ p.lower_limit }} to {{ p.upper_limit }}]
+                                    {% elif p.parameter_type == 'THRESHOLD' %}
+                                        {{ p.get_threshold_type_display }}: {{ p.threshold_limit }} {{ p.unit }}
+                                    {% else %}
+                                        Visual Check
+                                    {% endif %}
+                                </div>
+                                {% if p.pin %}
+                                    <span class="badge bg-primary-subtle text-primary border mt-1">
+                                        <i class="bi bi-pin-angle me-1"></i>Pin {{ p.pin.pin_number }}
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge bg-light text-dark border">{{ p.get_required_tool_type_display }}</span>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="3" class="text-center text-muted py-3">No parameters added yet.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal to Assign Pin to Parameter upon Canvas Click -->
+<div class="modal fade" id="pinModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title"><i class="bi bi-pin-map text-warning me-2"></i>Drop Blueprint Pin</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-muted">Select the parameter corresponding to this pin location:</p>
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">Select Inspection Parameter</label>
+                    <select id="modalParamSelect" class="form-select">
+                        <option value="">-- Generic Reference Pin --</option>
+                        {% for p in parameters %}
+                            <option value="{{ p.id }}">{{ p.sequence_order }}. {{ p.parameter_name }} {% if p.is_ctq %}[CTQ]{% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">Pin Label (Optional)</label>
+                    <input type="text" id="modalPinLabel" class="form-control" placeholder="Leave blank to use parameter title">
+                </div>
+                <input type="hidden" id="modalCoordX">
+                <input type="hidden" id="modalCoordY">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary btn-sm" id="btnSavePin">Save Pin on Drawing</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleParamInputs() {
+    const val = document.getElementById('paramTypeSelect').value;
+    const dim = document.getElementById('dimensionInputs');
+    const thresh = document.getElementById('thresholdInputs');
+    if (val === 'DIMENSION') {
+        dim.classList.remove('d-none');
+        thresh.classList.add('d-none');
+    } else if (val === 'THRESHOLD') {
+        dim.classList.add('d-none');
+        thresh.classList.remove('d-none');
+    } else {
+        dim.classList.add('d-none');
+        thresh.classList.add('d-none');
+    }
+}
+
+function highlightParam(rowId) {
+    const row = document.getElementById(rowId);
+    if (row) {
+        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        row.classList.add('highlight-param-row');
+        setTimeout(() => row.classList.remove('highlight-param-row'), 2000);
+    }
+}
+
+// Interactive Blueprint Pinning Click Listener
+const container = document.getElementById('blueprintContainer');
+if (container) {
+    const pinModal = new bootstrap.Modal(document.getElementById('pinModal'));
+
+    container.addEventListener('click', function(e) {
+        // Prevent triggering when clicking existing pins
+        if (e.target.classList.contains('blueprint-pin-marker')) return;
+
+        const rect = container.getBoundingClientRect();
+        const x = (e.clientX - rect.left) / rect.width;
+        const y = (e.clientY - rect.top) / rect.height;
+
+        document.getElementById('modalCoordX').value = x.toFixed(4);
+        document.getElementById('modalCoordY').value = y.toFixed(4);
+
+        pinModal.show();
+    });
+
+    document.getElementById('btnSavePin').addEventListener('click', function() {
+        const bpId = container.dataset.blueprintId;
+        const paramId = document.getElementById('modalParamSelect').value;
+        const label = document.getElementById('modalPinLabel').value;
+        const x = document.getElementById('modalCoordX').value;
+        const y = document.getElementById('modalCoordY').value;
+
+        const formData = new FormData();
+        formData.append('parameter_id', paramId);
+        formData.append('label', label);
+        formData.append('coord_x', x);
+        formData.append('coord_y', y);
+        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+        fetch(`/quality/blueprints/${bpId}/pins/api/`, {
+            method: 'POST',
+            body: formData,
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                // Drop visual pin marker
+                const marker = document.createElement('div');
+                marker.className = `blueprint-pin-marker ${data.is_ctq ? 'pin-ctq' : ''}`;
+                marker.style.left = `${(data.coord_x * 100).toFixed(2)}%`;
+                marker.style.top = `${(data.coord_y * 100).toFixed(2)}%`;
+                marker.innerText = data.pin_number;
+                marker.title = data.label;
+                container.appendChild(marker);
+                pinModal.hide();
+                window.location.reload();
+            } else {
+                alert('Error saving pin: ' + data.error);
+            }
+        })
+        .catch(err => alert('Network error saving pin.'));
+    });
+}
+</script>
+{% endblock %}

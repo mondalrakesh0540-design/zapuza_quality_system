@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+
+{% block title %}Gate Pass - {{ manifest.manifest_number }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    @media print {
+        nav, .navbar, .action-toolbar, .alert, footer, .btn, .d-print-none {
+            display: none !important;
+        }
+        body {
+            background-color: #fff !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        .gatepass-sheet {
+            box-shadow: none !important;
+            border: 1px solid #333 !important;
+            padding: 10mm !important;
+            margin: 0 !important;
+        }
+    }
+    .gatepass-sheet {
+        background-color: #fff;
+        border: 1px solid #cbd5e1;
+        border-radius: 4px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        padding: 25px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between mb-4 border-bottom pb-3 action-toolbar">
+    <div>
+        <h2 class="h4 fw-bold mb-1 text-dark">
+            <i class="bi bi-shield-check text-success me-2"></i>{{ manifest.manifest_number }}
+        </h2>
+        <span class="text-muted small">
+            Cleared: {{ manifest.cleared_at|date:"Y-m-d H:i:s" }} UTC &bull; By: {{ manifest.cleared_by.employee_id }} ({{ manifest.cleared_by.get_role_display }})
+        </span>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'dispatch:dispatch_queue' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Back to Queue
+        </a>
+        <button onclick="window.print()" class="btn btn-outline-primary">
+            <i class="bi bi-printer me-1"></i> Print Gate Pass & Packing Slip
+        </button>
+        <a href="{% url 'dispatch:dispatch_crate_label' manifest.id %}" class="btn btn-outline-dark">
+            <i class="bi bi-qr-code me-1"></i> View Crate QR Label
+        </a>
+        <a href="{% url 'quality:coc_detail' coc.id %}" class="btn btn-outline-success">
+            <i class="bi bi-award me-1"></i> View CoC
+        </a>
+    </div>
+</div>
+
+<div class="gatepass-sheet mb-5">
+    <div class="text-center pb-3 border-bottom border-2 border-primary">
+        <h2 class="h3 fw-bold mb-0 text-dark">ZAPUZA TECHNOLOGIES LLP</h2>
+        <div class="text-muted small">Factory Operations & Logistics Directorate &bull; Official Dispatch Clearance</div>
+        <div class="h4 fw-bold mt-2 text-primary">DISPATCH MANIFEST & SECURITY GATE PASS</div>
+    </div>
+
+    <div class="row g-2 py-2 mt-1 mb-3 bg-light border rounded small">
+        <div class="col-md-4">
+            <strong>Gate Pass No:</strong> <span class="font-monospace text-dark fw-bold">{{ manifest.manifest_number }}</span>
+        </div>
+        <div class="col-md-4 text-center">
+            <strong>Clearance Date:</strong> {{ manifest.cleared_at|date:"Y-m-d H:i:s" }} UTC
+        </div>
+        <div class="col-md-4 text-end">
+            <strong>Status:</strong> <span class="badge bg-success">SECURITY CLEARED</span>
+        </div>
+    </div>
+
+    <!-- Customer & Transport Details Table -->
+    <h6 class="fw-bold text-dark text-uppercase border-bottom pb-1 mb-2 small">1. Consignee & Shipping Destination</h6>
+    <div class="table-responsive mb-3">
+        <table class="table table-sm table-bordered align-middle small mb-0">
+            <tbody>
+                <tr>
+                    <th class="bg-light w-25">Customer / Consignee:</th>
+                    <td class="w-25 fw-bold">{{ manifest.customer_name }}</td>
+                    <th class="bg-light w-25">Customer PO Number:</th>
+                    <td class="w-25 fw-bold text-primary font-monospace">{{ manifest.customer_po_number }}</td>
+                </tr>
+                <tr>
+                    <th class="bg-light">Delivery Destination:</th>
+                    <td colspan="3">{{ manifest.shipping_destination }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Logistics Details -->
+    <h6 class="fw-bold text-dark text-uppercase border-bottom pb-1 mb-2 small">2. Transport & Carrier Information</h6>
+    <div class="table-responsive mb-3">
+        <table class="table table-sm table-bordered align-middle small mb-0">
+            <tbody>
+                <tr>
+                    <th class="bg-light w-25">Vehicle Number:</th>
+                    <td class="w-25 fw-bold font-monospace">{{ manifest.transport_vehicle_number }}</td>
+                    <th class="bg-light w-25">Driver Name:</th>
+                    <td class="w-25">{{ manifest.driver_name }}</td>
+                </tr>
+                <tr>
+                    <th class="bg-light">Driver Contact No:</th>
+                    <td>{{ manifest.driver_contact|default:"N/A" }}</td>
+                    <th class="bg-light">Driver License No:</th>
+                    <td>{{ manifest.driver_license|default:"N/A" }}</td>
+                </tr>
+                <tr>
+                    <th class="bg-light">Container Seal Tag ID:</th>
+                    <td class="font-monospace fw-bold text-danger">{{ manifest.container_seal_number|default:"N/A" }}</td>
+                    <th class="bg-light">Physical Packed Qty:</th>
+                    <td class="fw-bold text-success">{{ manifest.dispatch_quantity }} Units</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Manufacturing & Traceability Details -->
+    <h6 class="fw-bold text-dark text-uppercase border-bottom pb-1 mb-2 small">3. Component Traceability & Quality Releases</h6>
+    <div class="table-responsive mb-4">
+        <table class="table table-sm table-bordered align-middle small mb-0">
+            <tbody>
+                <tr>
+                    <th class="bg-light w-25">Part Number & Name:</th>
+                    <td class="w-25 fw-bold">{{ part.part_number }} - {{ part.part_name }}</td>
+                    <th class="bg-light w-25">Drawing & Revision:</th>
+                    <td class="w-25">{{ part.drawing_number }} ({{ part.revision_level }})</td>
+                </tr>
+                <tr>
+                    <th class="bg-light">Work Order / Traveler:</th>
+                    <td class="font-monospace">{{ work_order.work_order_number }} &bull; {{ traveler.traveler_barcode }}</td>
+                    <th class="bg-light">Material Grade & Mill Heat:</th>
+                    <td>{{ lot.material_grade.code }} (Heat #<strong>{{ lot.heat_number }}</strong>)</td>
+                </tr>
+                <tr>
+                    <th class="bg-light">MTC Verification:</th>
+                    <td><span class="badge bg-success">VERIFIED ON FILE</span></td>
+                    <th class="bg-light">Certificate of Conformance:</th>
+                    <td class="fw-bold font-monospace text-primary">{{ coc.certificate_number }} (v{{ coc.version }})</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Security Check Sign-off Box -->
+    <div class="p-3 border rounded bg-light mb-3">
+        <div class="row align-items-center g-3">
+            <div class="col-8">
+                <div class="small fw-bold text-uppercase text-primary mb-1">
+                    <i class="bi bi-shield-check me-1"></i>Security Gate Dispatch Authorization
+                </div>
+                <div class="small">
+                    <strong>Cleared By:</strong> {{ manifest.cleared_by.get_full_name|default:manifest.cleared_by.username }} (ID: {{ manifest.cleared_by.employee_id }}) &bull;
+                    <strong>Role:</strong> {{ manifest.cleared_by.get_role_display }}
+                </div>
+                <div class="small text-muted font-monospace mt-1">
+                    Verification Token: {{ manifest.qr_verification_token }}
+                </div>
+            </div>
+            <div class="col-4 text-end">
+                <div class="border p-2 bg-white d-inline-block text-center rounded shadow-sm">
+                    <i class="bi bi-qr-code text-primary" style="font-size: 2.2rem;"></i>
+                    <div class="small fw-bold">Customer QR Label</div>
+                    <div class="text-muted" style="font-size: 0.65rem;">Digital Birth Cert</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="p-2 border rounded small text-muted" style="font-size: 0.75rem;">
+        <strong>SECURITY INSTRUCTION:</strong> Plant security guard at the factory exit gate must verify the vehicle license plate, container seal integrity, and physical pallet count against this Gate Pass before lifting the barrier.
+    </div>
+</div>
+{% endblock %}

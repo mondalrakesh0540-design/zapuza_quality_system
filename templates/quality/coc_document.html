@@ -1,0 +1,337 @@
+{% extends "base.html" %}
+
+{% block title %}Certificate of Conformance - {{ coc.certificate_number }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    @media print {
+        /* Hide navbar, buttons, and alert bars when printing */
+        nav, .navbar, .action-toolbar, .alert, footer, .btn, .d-print-none {
+            display: none !important;
+        }
+        body {
+            background-color: #fff !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        .container, .container-fluid {
+            max-width: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        .certificate-sheet {
+            box-shadow: none !important;
+            border: 1px solid #333 !important;
+            padding: 15mm !important;
+            margin: 0 !important;
+        }
+    }
+
+    .certificate-sheet {
+        background-color: #fff;
+        border: 1px solid #cbd5e1;
+        border-radius: 4px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        padding: 30px;
+    }
+
+    .stamp-box {
+        border: 2px dashed #0284c7;
+        background-color: #f0f9ff;
+        padding: 15px;
+        border-radius: 6px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Top Action Toolbar -->
+<div class="d-flex flex-wrap align-items-center justify-content-between mb-4 border-bottom pb-3 action-toolbar">
+    <div>
+        <h2 class="h4 fw-bold mb-1 text-dark">
+            <i class="bi bi-award text-primary me-2"></i>{{ coc.certificate_number }}
+        </h2>
+        <span class="text-muted small">
+            Issued: {{ coc.issued_at|date:"Y-m-d H:i:s" }} UTC &bull; Version: {{ coc.version }} &bull; 
+            {% if coc.status == 'ACTIVE' %}
+                <span class="badge bg-success">ACTIVE / VALID</span>
+            {% elif coc.status == 'SUPERSEDED' %}
+                <span class="badge bg-secondary">SUPERSEDED</span>
+            {% else %}
+                <span class="badge bg-danger">{{ coc.get_status_display }}</span>
+            {% endif %}
+        </span>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'quality:coc_list' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Back to CoC List
+        </a>
+        <button onclick="window.print()" class="btn btn-outline-primary">
+            <i class="bi bi-printer me-1"></i> Print Certificate
+        </button>
+        <a href="{% url 'quality:coc_download' coc.id %}" class="btn btn-success">
+            <i class="bi bi-file-earmark-pdf-fill me-1"></i> Download PDF
+        </a>
+        <a href="{% url 'quality:coc_verify' coc.verification_token %}" target="_blank" class="btn btn-outline-info text-dark">
+            <i class="bi bi-qr-code me-1"></i> Public QR Link
+        </a>
+        {% if user.can_issue_coc and coc.status == 'ACTIVE' %}
+        <button type="button" class="btn btn-outline-warning text-dark" data-bs-toggle="collapse" data-bs-target="#reissueForm">
+            <i class="bi bi-arrow-repeat me-1"></i> Reissue (Supersede)
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Reissue Collapse Form -->
+{% if user.can_issue_coc and coc.status == 'ACTIVE' %}
+<div class="collapse mb-4" id="reissueForm">
+    <div class="card border-warning shadow-sm">
+        <div class="card-header bg-warning bg-opacity-25 py-2">
+            <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-arrow-repeat me-2"></i>Reissue Certificate of Conformance (Supersede Version {{ coc.version }})</h6>
+        </div>
+        <div class="card-body">
+            <p class="small text-muted mb-3">
+                Reissuing will formally <strong>supersede</strong> this active certificate ({{ coc.certificate_number }}) and issue version {{ coc.version|add:1 }}.
+                An engineering justification reason is mandatory.
+            </p>
+            <form method="post" action="{% url 'quality:coc_generate' traveler.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="reissue" value="true">
+                <div class="mb-3">
+                    <label class="form-label fw-bold small text-uppercase">Engineering Justification Reason for Reissuance:</label>
+                    <textarea name="reissue_reason" class="form-control" rows="2" required placeholder="e.g. Updated customer purchase order reference number; packaging spec revised per Engineering Change Notice ECN-401."></textarea>
+                </div>
+                <div class="d-flex justify-content-end gap-2">
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-toggle="collapse" data-bs-target="#reissueForm">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-warning text-dark fw-bold">
+                        <i class="bi bi-check2-circle me-1"></i> Confirm & Reissue Certificate
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if coc.status == 'SUPERSEDED' %}
+<div class="alert alert-secondary d-flex align-items-center mb-4" role="alert">
+    <i class="bi bi-info-circle-fill fs-4 me-3 text-secondary"></i>
+    <div>
+        <strong>SUPERSEDED CERTIFICATE:</strong> This certificate version has been superseded by an updated revision.
+        {% if coc.superseded_by %}
+            <a href="{% url 'quality:coc_detail' coc.superseded_by.id %}" class="fw-bold ms-2">
+                View Superseding Certificate {{ coc.superseded_by.certificate_number }} (v{{ coc.superseded_by.version }}) &rarr;
+            </a>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<!-- The Official Certificate Sheet Document -->
+<div class="certificate-sheet mb-5">
+    <!-- Header -->
+    <div class="text-center pb-3 border-bottom border-2 border-primary">
+        <h2 class="h3 fw-bold mb-0 text-dark tracking-wide">ZAPUZA TECHNOLOGIES LLP</h2>
+        <div class="text-muted small">Factory Operations & Quality Assurance Directorate &bull; ISO 9001:2015 Compliant QMS</div>
+        <div class="h4 fw-bold mt-2 text-primary">CERTIFICATE OF CONFORMANCE (CoC)</div>
+    </div>
+
+    <!-- Meta Details Row -->
+    <div class="row g-2 py-2 mt-1 mb-3 bg-light border rounded small">
+        <div class="col-md-4">
+            <strong>Certificate No:</strong> <span class="font-monospace text-dark fw-bold">{{ coc.certificate_number }}</span>
+        </div>
+        <div class="col-md-4 text-center">
+            <strong>Issue Date:</strong> {{ coc.issued_at|date:"Y-m-d H:i:s" }} UTC
+        </div>
+        <div class="col-md-4 text-end">
+            <strong>Status:</strong> 
+            <span class="fw-bold {% if coc.status == 'ACTIVE' %}text-success{% else %}text-danger{% endif %}">
+                {{ coc.get_status_display|upper }} (Rev {{ coc.version }})
+            </span>
+        </div>
+    </div>
+
+    <!-- Section 1: Component Specification -->
+    <h6 class="fw-bold text-dark text-uppercase border-bottom pb-1 mb-2 small">
+        1. Manufactured Component Specifications
+    </h6>
+    <div class="table-responsive mb-3">
+        <table class="table table-sm table-bordered align-middle small mb-0">
+            <tbody>
+                <tr>
+                    <th class="bg-light w-25">Part Number:</th>
+                    <td class="w-25 fw-bold">{{ part.part_number }}</td>
+                    <th class="bg-light w-25">Part Description:</th>
+                    <td class="w-25">{{ part.part_name }}</td>
+                </tr>
+                <tr>
+                    <th class="bg-light">Drawing Number:</th>
+                    <td>{{ part.drawing_number }}</td>
+                    <th class="bg-light">Drawing Revision:</th>
+                    <td>{{ part.revision_level }}</td>
+                </tr>
+                <tr>
+                    <th class="bg-light">Work Order No:</th>
+                    <td class="fw-bold">{{ work_order.work_order_number }}</td>
+                    <th class="bg-light">Job Traveler Barcode:</th>
+                    <td class="font-monospace">{{ traveler.traveler_barcode }}</td>
+                </tr>
+                <tr>
+                    <th class="bg-light">Batch Quantity:</th>
+                    <td>{{ work_order.target_quantity }} Units</td>
+                    <th class="bg-light">Completed Quantity:</th>
+                    <td class="fw-bold text-success">{{ work_order.completed_quantity }} Units</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Section 2: Material Traceability & MTC -->
+    <h6 class="fw-bold text-dark text-uppercase border-bottom pb-1 mb-2 small">
+        2. Raw Material & Heat Traceability (MTC)
+    </h6>
+    <div class="table-responsive mb-3">
+        <table class="table table-sm table-bordered align-middle small mb-0">
+            <tbody>
+                <tr>
+                    <th class="bg-light w-25">Material Grade:</th>
+                    <td class="w-25 fw-bold">{{ lot.material_grade.code }} - {{ lot.material_grade.name }}</td>
+                    <th class="bg-light w-25">Mill Heat Number:</th>
+                    <td class="w-25 fw-bold text-primary font-monospace fs-6">{{ lot.heat_number }}</td>
+                </tr>
+                <tr>
+                    <th class="bg-light">Intake Lot ID:</th>
+                    <td class="font-monospace">{{ lot.lot_number }}</td>
+                    <th class="bg-light">Material Supplier:</th>
+                    <td>{{ lot.supplier_name }}</td>
+                </tr>
+                <tr>
+                    <th class="bg-light">MTC Verification Status:</th>
+                    <td colspan="3">
+                        <span class="badge bg-success"><i class="bi bi-check-circle-fill me-1"></i>VERIFIED ON FILE</span>
+                        {% if lot.mtc_verified_by %}
+                            <span class="ms-2 text-muted">
+                                Verified by {{ lot.mtc_verified_by.employee_id }} ({{ lot.mtc_verified_by.get_full_name|default:lot.mtc_verified_by.username }}) on {{ lot.mtc_verified_at|date:"Y-m-d" }}
+                            </span>
+                        {% endif %}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Section 3: Final PDI Measurements Record -->
+    <h6 class="fw-bold text-dark text-uppercase border-bottom pb-1 mb-2 small">
+        3. Final Pre-Dispatch Inspection (PDI) Measurement Record
+    </h6>
+    <div class="small text-muted mb-2">
+        PDI Record No: <strong>{{ pdi_insp.inspection_number }}</strong> &bull;
+        Date: {{ pdi_insp.created_at|date:"Y-m-d H:i" }} &bull;
+        Inspector: {{ pdi_insp.inspector.employee_id }} ({{ pdi_insp.inspector.get_full_name|default:pdi_insp.inspector.username }})
+    </div>
+    <div class="table-responsive mb-4">
+        <table class="table table-sm table-bordered align-middle small mb-0">
+            <thead class="table-dark small text-uppercase">
+                <tr>
+                    <th style="width: 5%;">Seq</th>
+                    <th style="width: 25%;">Inspection Parameter</th>
+                    <th style="width: 20%;">Nominal / Tolerances</th>
+                    <th style="width: 12%;">Measured Value</th>
+                    <th style="width: 8%;">Unit</th>
+                    <th style="width: 12%;">Instrument</th>
+                    <th style="width: 8%;">CTQ</th>
+                    <th style="width: 10%;">Result</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for m in measurements %}
+                <tr>
+                    <td class="text-center">{{ m.parameter.sequence_order }}</td>
+                    <td class="fw-bold">{{ m.parameter.parameter_name }}</td>
+                    <td>
+                        {% if m.parameter.parameter_type == 'DIMENSION' %}
+                            {{ m.parameter.nominal_value }} (+{{ m.parameter.upper_tolerance }}/{{ m.parameter.lower_tolerance }})
+                        {% elif m.parameter.parameter_type == 'THRESHOLD' %}
+                            {{ m.parameter.get_threshold_type_display }} {{ m.parameter.threshold_limit }}
+                        {% else %}
+                            Visual Spec OK
+                        {% endif %}
+                    </td>
+                    <td class="fw-bold font-monospace">
+                        {% if m.measured_value is not None %}
+                            {{ m.measured_value }}
+                        {% else %}
+                            {% if m.visual_passed %}PASS{% else %}FAIL{% endif %}
+                        {% endif %}
+                    </td>
+                    <td>{{ m.parameter.unit }}</td>
+                    <td>
+                        {% if m.measuring_tool %}
+                            {{ m.measuring_tool.tool_code }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        {% if m.parameter.is_ctq %}
+                            <span class="badge bg-warning text-dark"><i class="bi bi-star-fill me-1"></i>CTQ</span>
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        {% if m.is_in_tolerance %}
+                            <span class="badge bg-success">PASS</span>
+                        {% else %}
+                            <span class="badge bg-danger">FAIL</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="text-center py-2 text-muted">No measurements recorded.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Section 4: Audited Approval Stamp & Digital Verification -->
+    <div class="stamp-box mb-3">
+        <div class="row align-items-center g-3">
+            <div class="col-md-8">
+                <div class="small fw-bold text-primary text-uppercase mb-1">
+                    <i class="bi bi-patch-check-fill me-1"></i>Audited Electronic Approval Stamp
+                </div>
+                <div class="small">
+                    <strong>Approved By:</strong> {{ coc.issued_by.get_full_name|default:coc.issued_by.username }} (Employee ID: <strong>{{ coc.issued_by.employee_id }}</strong>) &bull; 
+                    <strong>Role:</strong> {{ coc.issued_by.get_role_display }}
+                </div>
+                <div class="small">
+                    <strong>Timestamp (UTC):</strong> {{ coc.issued_at|date:"Y-m-d H:i:s" }} UTC &bull;
+                    <strong>Verification Token:</strong> <span class="font-monospace">{{ coc.verification_token }}</span>
+                </div>
+                {% if coc.pdf_sha256_hash %}
+                <div class="small text-muted font-monospace text-truncate mt-1" style="max-width: 500px;">
+                    <strong>SHA-256 Digest:</strong> {{ coc.pdf_sha256_hash }}
+                </div>
+                {% endif %}
+            </div>
+            <div class="col-md-4 text-end">
+                <div class="border rounded p-2 bg-white d-inline-block text-center shadow-sm">
+                    <i class="bi bi-qr-code text-primary" style="font-size: 2.5rem;"></i>
+                    <div class="small fw-bold text-dark mt-1">Scan for Online Verification</div>
+                    <div class="text-muted" style="font-size: 0.65rem;">Zapuza QMS Authentication</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Certification Legal Statement -->
+    <div class="p-2 border rounded bg-light small text-muted" style="font-size: 0.75rem; line-height: 1.3;">
+        <strong>CERTIFICATION STATEMENT:</strong> It is hereby certified that the parts described above have been manufactured, inspected, and tested in full conformance with the applicable drawings, specifications, purchase order requirements, and ISO 9001 quality management procedures. All raw material test certificates and physical inspection measurement records are maintained on file and traceable via the unique mill heat number and job traveler barcode.
+    </div>
+</div>
+{% endblock %}

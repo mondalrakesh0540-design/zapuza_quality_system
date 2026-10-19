@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}Workstations & PM Register - Zapuza Quality OS{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between mb-4 border-bottom pb-3">
+    <div>
+        <h2 class="h3 fw-bold mb-1 text-dark">
+            <i class="bi bi-cpu-fill text-primary me-2"></i>Machine Tools & Workstations
+        </h2>
+        <span class="text-muted small">
+            Master register of production equipment, QR codes, daily PM checklists, and lockout status.
+        </span>
+    </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="card shadow-sm border-0 mb-4 bg-light">
+    <div class="card-body p-3">
+        <form method="GET" class="row g-2 align-items-center">
+            <div class="col-md-4">
+                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Department</label>
+                <select name="department" class="form-select" onchange="this.form.submit()">
+                    <option value="">-- All Departments --</option>
+                    {% for dept in departments %}
+                        <option value="{{ dept.id }}" {% if selected_dept == dept.id|stringformat:"s" %}selected{% endif %}>
+                            {{ dept.code }} - {{ dept.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Operating Status</label>
+                <select name="status" class="form-select" onchange="this.form.submit()">
+                    <option value="">-- All Statuses --</option>
+                    <option value="IDLE" {% if selected_status == 'IDLE' %}selected{% endif %}>Idle / Available</option>
+                    <option value="RUNNING" {% if selected_status == 'RUNNING' %}selected{% endif %}>In Production</option>
+                    <option value="SETUP_MODE" {% if selected_status == 'SETUP_MODE' %}selected{% endif %}>Setup Mode</option>
+                    <option value="MAINTENANCE_LOCKED" {% if selected_status == 'MAINTENANCE_LOCKED' %}selected{% endif %}>Maintenance Locked</option>
+                </select>
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <a href="{% url 'master_data:workstation_list' %}" class="btn btn-outline-secondary w-100">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i> Reset Filters
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Workstations Grid -->
+<div class="row g-4">
+    {% for item in workstations %}
+    <div class="col-md-6 col-lg-4">
+        <div class="card shadow-sm border-0 h-100 {% if not item.can_start %}border-top border-4 border-danger{% else %}border-top border-4 border-success{% endif %}">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="badge bg-dark font-monospace fs-6">{{ item.ws.machine_code }}</span>
+                </div>
+                <span class="badge bg-light text-dark border">{{ item.ws.department.code }}</span>
+            </div>
+            <div class="card-body p-3">
+                <h5 class="fw-bold text-dark mb-1">{{ item.ws.name }}</h5>
+                <div class="small text-muted mb-3">
+                    <i class="bi bi-qr-code me-1"></i> Station QR: <code class="text-primary">{{ item.ws.qr_code_identifier }}</code>
+                </div>
+
+                <!-- Daily PM Status -->
+                <div class="p-2 rounded mb-3 {% if item.ws.is_daily_pm_completed %}bg-success-subtle text-success border border-success{% else %}bg-danger-subtle text-danger border border-danger{% endif %}">
+                    <div class="d-flex align-items-center justify-content-between small fw-bold">
+                        <span>Today's PM Checklist:</span>
+                        {% if item.ws.is_daily_pm_completed %}
+                            <span><i class="bi bi-check-circle-fill me-1"></i>PASSED</span>
+                        {% else %}
+                            <span><i class="bi bi-x-circle-fill me-1"></i>OVERDUE / LOCKED</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Operational Clearance -->
+                {% if item.can_start %}
+                    <div class="alert alert-success py-2 px-3 small mb-0 d-flex align-items-center">
+                        <i class="bi bi-unlock-fill fs-5 me-2"></i>
+                        <div>
+                            <strong>Cleared for Production</strong>
+                            <div class="text-muted" style="font-size: 0.75rem;">Operators can select jobs on this machine.</div>
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="alert alert-danger py-2 px-3 small mb-0 d-flex align-items-center">
+                        <i class="bi bi-lock-fill fs-5 me-2"></i>
+                        <div>
+                            <strong>Job Selection Disabled</strong>
+                            <div style="font-size: 0.75rem;">{{ item.lockout_reason }}</div>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="card-footer bg-white border-top p-3 d-flex justify-content-between align-items-center">
+                <a href="{% url 'master_data:workstation_detail' pk=item.ws.pk %}" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-eye me-1"></i> View Station
+                </a>
+                {% if user.can_sign_off_pm %}
+                <a href="{% url 'master_data:workstation_pm_create' pk=item.ws.pk %}" class="btn btn-sm btn-warning text-dark fw-bold">
+                    <i class="bi bi-clipboard2-check me-1"></i> Daily PM
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+        <div class="alert alert-info py-4 text-center">
+            <i class="bi bi-info-circle fs-3 d-block mb-2"></i>
+            No workstations matching the selected filters.
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

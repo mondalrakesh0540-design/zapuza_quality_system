@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}Verify MTC - Lot {{ lot.lot_number }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard:index' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'inventory:intake_list' %}">Raw Material & Traceability</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'inventory:intake_detail' pk=lot.pk %}">{{ lot.lot_number }}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Verify MTC</li>
+    </ol>
+</nav>
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow-lg border-0 rounded-3">
+            <div class="card-header bg-dark text-white p-4" style="background-color: #0f2c59 !important;">
+                <h4 class="fw-bold mb-0"><i class="bi bi-patch-check me-2"></i>Mill Test Certificate (MTC) Verification</h4>
+                <small class="text-white-50">BRD Section 3.2: Digital MTC Cross-Checking Workflow</small>
+            </div>
+            <div class="card-body p-4">
+                <div class="alert alert-info d-flex align-items-center mb-4">
+                    <i class="bi bi-info-circle-fill fs-3 me-3 text-primary"></i>
+                    <div>
+                        <strong>Quality Verification Procedure:</strong>
+                        <div class="small">
+                            Confirm that the chemical composition and mechanical properties on the supplier's attached MTC match internal engineering specification sheets for <strong>{{ lot.material_grade.code }}</strong> before approving.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-3 p-3 bg-light rounded border mb-4">
+                    <div class="col-sm-6">
+                        <small class="text-muted d-block">Intake Lot:</small>
+                        <strong class="font-monospace text-primary fs-5">{{ lot.lot_number }}</strong>
+                    </div>
+                    <div class="col-sm-6">
+                        <small class="text-muted d-block">Mill Heat Number:</small>
+                        <strong class="font-monospace fs-5">{{ lot.heat_number }}</strong>
+                    </div>
+                    <div class="col-sm-6">
+                        <small class="text-muted d-block">Material Grade:</small>
+                        <strong>{{ lot.material_grade.code }}</strong> ({{ lot.material_grade.name }})
+                    </div>
+                    <div class="col-sm-6">
+                        <small class="text-muted d-block">Supplier:</small>
+                        <strong>{{ lot.supplier_name }}</strong>
+                    </div>
+                    <div class="col-sm-12 border-top pt-2 mt-2">
+                        <small class="text-muted d-block">Attached MTC Document:</small>
+                        <a href="{{ lot.mtc_file.url }}" target="_blank" class="btn btn-outline-danger btn-sm mt-1">
+                            <i class="bi bi-file-earmark-pdf-fill me-1"></i> Open Attached MTC File ({{ lot.mtc_file.name }})
+                        </a>
+                    </div>
+                </div>
+
+                <form method="POST">
+                    {% csrf_token %}
+                    <div class="d-flex gap-3">
+                        <button type="submit" name="action" value="reject" class="btn btn-outline-danger w-50 btn-lg">
+                            <i class="bi bi-x-circle me-1"></i> Reject MTC & Quarantine
+                        </button>
+                        <button type="submit" name="action" value="verify" class="btn btn-success w-50 btn-lg shadow-sm">
+                            <i class="bi bi-check-circle me-1"></i> Approve & Verify MTC
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

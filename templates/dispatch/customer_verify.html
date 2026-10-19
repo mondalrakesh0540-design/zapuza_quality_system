@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block title %}Certified Shipment & Inspection Verification - Zapuza Quality OS{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center py-4">
+    <div class="col-lg-10">
+        {% if is_valid %}
+            <div class="card shadow border-0 overflow-hidden mb-4">
+                <div class="bg-success text-white text-center py-4 px-3">
+                    <div class="display-6 mb-2"><i class="bi bi-patch-check-fill"></i></div>
+                    <h2 class="h3 fw-bold mb-1">AUTHENTIC CERTIFIED SHIPMENT & DIGITAL QUALITY BIRTH CERTIFICATE</h2>
+                    <p class="mb-0 small text-white-50">
+                        Zapuza Technologies LLP &bull; Pre-Dispatch Inspection Verified &bull; ISO 9001:2015 Compliant
+                    </p>
+                </div>
+
+                <div class="card-body p-4">
+                    <!-- Shipment Header Summary -->
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <div class="p-3 bg-light border rounded">
+                                <h6 class="fw-bold text-dark text-uppercase small border-bottom pb-1 mb-2">Shipment & Consignee Details</h6>
+                                <div class="small"><strong>Customer / Consignee:</strong> {{ manifest.customer_name }}</div>
+                                <div class="small"><strong>Customer PO:</strong> <span class="fw-bold font-monospace text-primary">{{ manifest.customer_po_number }}</span></div>
+                                <div class="small"><strong>Dispatch Manifest:</strong> {{ manifest.manifest_number }}</div>
+                                <div class="small"><strong>Batch Quantity:</strong> <span class="fw-bold text-success">{{ manifest.dispatch_quantity }} Units</span></div>
+                                <div class="small"><strong>Vehicle Number:</strong> {{ manifest.transport_vehicle_number }}</div>
+                                <div class="small"><strong>Container Seal ID:</strong> <span class="font-monospace text-danger">{{ manifest.container_seal_number|default:"N/A" }}</span></div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="p-3 bg-light border rounded">
+                                <h6 class="fw-bold text-dark text-uppercase small border-bottom pb-1 mb-2">Manufactured Component Details</h6>
+                                <div class="small"><strong>Part Number:</strong> <span class="fw-bold text-dark">{{ part.part_number }}</span></div>
+                                <div class="small"><strong>Description:</strong> {{ part.part_name }}</div>
+                                <div class="small"><strong>Drawing Number:</strong> {{ part.drawing_number }} ({{ part.revision_level }})</div>
+                                <div class="small"><strong>Mill Heat Number:</strong> <span class="font-monospace fw-bold">{{ lot.heat_number }}</span></div>
+                                <div class="small"><strong>Material Grade:</strong> {{ lot.material_grade.code }} ({{ lot.material_grade.name }})</div>
+                                <div class="small"><strong>CoC Document No:</strong> <span class="font-monospace text-primary">{{ coc.certificate_number }} (Rev {{ coc.version }})</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Final PDI Measurement Results Table -->
+                    <h5 class="fw-bold text-dark border-bottom pb-2 mb-3">
+                        <i class="bi bi-clipboard2-check me-2 text-primary"></i>Certified Pre-Dispatch Inspection (PDI) Measurement Record
+                    </h5>
+                    <div class="table-responsive mb-4">
+                        <table class="table table-sm table-bordered align-middle small mb-0">
+                            <thead class="table-dark small text-uppercase">
+                                <tr>
+                                    <th style="width: 5%;">Seq</th>
+                                    <th style="width: 25%;">Inspection Check</th>
+                                    <th style="width: 20%;">Drawing Specification</th>
+                                    <th style="width: 15%;">Actual Reading</th>
+                                    <th style="width: 10%;">Unit</th>
+                                    <th style="width: 10%;">CTQ</th>
+                                    <th style="width: 15%;">Result</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for m in measurements %}
+                                <tr>
+                                    <td class="text-center">{{ m.parameter.sequence_order }}</td>
+                                    <td class="fw-bold">{{ m.parameter.parameter_name }}</td>
+                                    <td>
+                                        {% if m.parameter.parameter_type == 'DIMENSION' %}
+                                            {{ m.parameter.nominal_value }} (+{{ m.parameter.upper_tolerance }}/{{ m.parameter.lower_tolerance }})
+                                        {% elif m.parameter.parameter_type == 'THRESHOLD' %}
+                                            {{ m.parameter.get_threshold_type_display }} {{ m.parameter.threshold_limit }}
+                                        {% else %}
+                                            Visual Spec OK
+                                        {% endif %}
+                                    </td>
+                                    <td class="fw-bold font-monospace">
+                                        {% if m.measured_value is not None %}
+                                            {{ m.measured_value }}
+                                        {% else %}
+                                            {% if m.visual_passed %}PASS{% else %}FAIL{% endif %}
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ m.parameter.unit }}</td>
+                                    <td class="text-center">
+                                        {% if m.parameter.is_ctq %}
+                                            <span class="badge bg-warning text-dark">CTQ</span>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if m.is_in_tolerance %}
+                                            <span class="badge bg-success">PASS / IN-SPEC</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">FAIL</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center py-2 text-muted">No measurements recorded.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Quality Declaration -->
+                    <div class="p-3 bg-light rounded border text-muted small">
+                        <i class="bi bi-shield-lock me-1 text-primary"></i>
+                        <strong>Quality Conformance Declaration:</strong> This digital birth certificate was certified electronically by the Zapuza Factory Operations & Quality Control System. All manufacturing operations and quality inspections meet customer engineering specifications.
+                    </div>
+                </div>
+            </div>
+        {% else %}
+            <div class="card shadow border-danger overflow-hidden">
+                <div class="bg-danger text-white text-center py-4 px-3">
+                    <div class="display-6 mb-2"><i class="bi bi-shield-x"></i></div>
+                    <h2 class="h3 fw-bold mb-1">UNVERIFIED SHIPMENT CRATE LABEL</h2>
+                    <p class="mb-0 small text-white-50">Security Alert &bull; No Authentic Match Found</p>
+                </div>
+                <div class="card-body p-4 text-center">
+                    <p class="text-muted mb-4">
+                        The scanned crate QR token <code class="font-monospace text-danger">{{ token }}</code> does not correspond to any valid, cleared dispatch gate pass in our system.
+                    </p>
+                    <a href="/" class="btn btn-outline-secondary"><i class="bi bi-house me-1"></i> Return Home</a>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

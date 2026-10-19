@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block title %}Shipping Clearance & Dispatch Gate - Zapuza Quality OS{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between mb-4 border-bottom pb-3">
+    <div>
+        <h2 class="h3 fw-bold mb-1 text-dark">
+            <i class="bi bi-truck text-primary me-2"></i>Dispatch Clearance & Shipping Interlock Gate
+        </h2>
+        <span class="text-muted small">
+            BRD Section 10 & 11: Electronic shipping gatekeeper ensuring 100% operation completion, zero active holds, approved PDI, and issued CoC.
+        </span>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'quality:coc_list' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-award me-1"></i> Certificates (CoC)
+        </a>
+        <a href="{% url 'quality:pdi_queue' %}" class="btn btn-outline-primary">
+            <i class="bi bi-patch-check me-1"></i> Final PDI Queue
+        </a>
+    </div>
+</div>
+
+<!-- Status Filter Pills & Search -->
+<div class="card shadow-sm border-0 mb-4 bg-light">
+    <div class="card-body p-3">
+        <div class="row g-3 align-items-center">
+            <div class="col-md-8 d-flex flex-wrap gap-2 align-items-center">
+                <span class="small fw-bold text-muted text-uppercase me-2">Status:</span>
+                <a href="{% url 'dispatch:dispatch_queue' %}" class="btn btn-sm {% if not selected_status %}btn-dark{% else %}btn-outline-secondary{% endif %}">
+                    All Lots
+                </a>
+                <a href="{% url 'dispatch:dispatch_queue' %}?status=ready" class="btn btn-sm {% if selected_status == 'ready' %}btn-success{% else %}btn-outline-success{% endif %}">
+                    <i class="bi bi-unlock me-1"></i> Ready for Clearance <span class="badge bg-success ms-1">{{ ready_count }}</span>
+                </a>
+                <a href="{% url 'dispatch:dispatch_queue' %}?status=cleared" class="btn btn-sm {% if selected_status == 'cleared' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                    <i class="bi bi-check-circle me-1"></i> Gate Pass Cleared <span class="badge bg-primary ms-1">{{ cleared_count }}</span>
+                </a>
+                <a href="{% url 'dispatch:dispatch_queue' %}?status=locked" class="btn btn-sm {% if selected_status == 'locked' %}btn-danger{% else %}btn-outline-danger{% endif %}">
+                    <i class="bi bi-lock-fill me-1"></i> Interlock Locked <span class="badge bg-danger ms-1">{{ locked_count }}</span>
+                </a>
+            </div>
+            <div class="col-md-4">
+                <form method="get" action="{% url 'dispatch:dispatch_queue' %}" class="d-flex">
+                    {% if selected_status %}<input type="hidden" name="status" value="{{ selected_status }}">{% endif %}
+                    <div class="input-group input-group-sm">
+                        <input type="text" name="q" value="{{ search_query }}" class="form-control" placeholder="Search traveler, WO, part...">
+                        <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-search"></i></button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Travelers Table -->
+<div class="card shadow-sm border-0">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-dark small text-uppercase">
+                <tr>
+                    <th>Job Traveler / WO</th>
+                    <th>Part & Drawing</th>
+                    <th>Heat Traceability</th>
+                    <th>Pre-Dispatch Quality Gate</th>
+                    <th>Shipping Interlock Status</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in queue_items %}
+                <tr>
+                    <td>
+                        <span class="fw-bold font-monospace text-dark">{{ item.traveler.traveler_barcode }}</span>
+                        <div class="small text-muted">{{ item.traveler.work_order.work_order_number }} (Qty: {{ item.traveler.work_order.completed_quantity }})</div>
+                    </td>
+                    <td>
+                        <div class="fw-bold">{{ item.traveler.work_order.part.part_number }}</div>
+                        <div class="small text-muted">{{ item.traveler.work_order.part.part_name }} ({{ item.traveler.work_order.part.revision_level }})</div>
+                    </td>
+                    <td>
+                        <span class="badge bg-light text-dark border">Heat #{{ item.traveler.work_order.raw_material_lot.heat_number }}</span>
+                        <div class="small text-success"><i class="bi bi-check-circle-fill me-1"></i>MTC Verified</div>
+                    </td>
+                    <td>
+                        {% if item.coc %}
+                            <span class="badge bg-success"><i class="bi bi-award me-1"></i>CoC Issued (v{{ item.coc.version }})</span>
+                        {% else %}
+                            <span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split me-1"></i>CoC Pending</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if item.stage == 'cleared' or item.stage == 'dispatched' %}
+                            <span class="badge bg-primary"><i class="bi bi-check2-all me-1"></i>Gate Pass Issued</span>
+                            <div class="small text-muted font-monospace">{{ item.manifest.manifest_number }}</div>
+                        {% elif item.can_clear %}
+                            <span class="badge bg-success"><i class="bi bi-unlock-fill me-1"></i>Cleared: Ready to Ship</span>
+                        {% else %}
+                            <span class="badge bg-danger"><i class="bi bi-lock-fill me-1"></i>Shipping Interlock Locked</span>
+                            <div class="small text-danger" style="font-size: 0.75rem;">
+                                {{ item.lockout_reasons|first }}
+                            </div>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        {% if item.manifest %}
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'dispatch:dispatch_gate_pass' item.manifest.id %}" class="btn btn-outline-primary" title="Print Gate Pass">
+                                    <i class="bi bi-printer me-1"></i> Gate Pass
+                                </a>
+                                <a href="{% url 'dispatch:dispatch_crate_label' item.manifest.id %}" class="btn btn-outline-dark" title="Print Crate QR Label">
+                                    <i class="bi bi-qr-code me-1"></i> QR Label
+                                </a>
+                            </div>
+                        {% elif item.can_clear %}
+                            {% if user.can_clear_shipping %}
+                                <a href="{% url 'dispatch:dispatch_create' item.traveler.id %}" class="btn btn-sm btn-success">
+                                    <i class="bi bi-check-circle me-1"></i> Clear for Dispatch
+                                </a>
+                            {% else %}
+                                <span class="badge bg-secondary">Awaiting Supervisor</span>
+                            {% endif %}
+                        {% else %}
+                            <button class="btn btn-sm btn-outline-secondary" disabled title="{{ item.lockout_reasons|join:', ' }}">
+                                <i class="bi bi-lock me-1"></i> Interlock Locked
+                            </button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center py-5 text-muted">
+                        <i class="bi bi-truck fs-2 d-block mb-2 text-secondary"></i>
+                        No job travelers found matching the selected criteria.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

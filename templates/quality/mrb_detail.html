@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block title %}MRB Disposition - {{ disposition.disposition_number }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-9">
+        <div class="d-flex align-items-center justify-content-between mb-4 border-bottom pb-3">
+            <div>
+                <h2 class="h3 fw-bold mb-1 text-dark">
+                    <i class="bi bi-shield-shaded text-danger me-2"></i>{{ disposition.disposition_number }}
+                </h2>
+                <span class="text-muted small">
+                    Authorized on {{ disposition.authorized_at|date:"Y-m-d H:i:s" }} UTC &bull; By {{ disposition.authorized_by.employee_id }} ({{ disposition.authorized_by.get_role_display }})
+                </span>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="{% url 'quality:mrb_queue' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left me-1"></i> Back to MRB Queue
+                </a>
+                <button onclick="window.print()" class="btn btn-outline-primary">
+                    <i class="bi bi-printer me-1"></i> Print Record
+                </button>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center py-3">
+                <h5 class="card-title mb-0 fs-6 fw-bold text-uppercase">
+                    Material Review Board Decision Record
+                </h5>
+                <span class="badge {% if disposition.disposition_type == 'REWORK' %}bg-warning text-dark{% elif disposition.disposition_type == 'SCRAP' %}bg-danger{% elif disposition.disposition_type == 'RTV' %}bg-secondary{% else %}bg-info text-dark{% endif %} fs-6">
+                    {{ disposition.get_disposition_type_display }}
+                </span>
+            </div>
+            <div class="card-body p-4">
+                <div class="table-responsive mb-4">
+                    <table class="table table-bordered small mb-0">
+                        <tbody>
+                            <tr>
+                                <th class="w-35 bg-light">Target Item:</th>
+                                <td>
+                                    {% if disposition.traveler %}
+                                        <strong>Job Traveler:</strong> <span class="font-monospace text-primary">{{ disposition.traveler.traveler_barcode }}</span>
+                                        <div class="text-muted">Work Order: {{ disposition.traveler.work_order.work_order_number }} &bull; Part: {{ disposition.traveler.work_order.part.part_number }}</div>
+                                    {% else %}
+                                        <strong>Raw Material Lot:</strong> <span class="font-monospace text-secondary">{{ disposition.raw_material_lot.lot_number }}</span>
+                                        <div class="text-muted">Heat: {{ disposition.raw_material_lot.heat_number }} &bull; Grade: {{ disposition.raw_material_lot.material_grade.code }}</div>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th class="bg-light">Defect Description:</th>
+                                <td>{{ disposition.defect_description }}</td>
+                            </tr>
+                            <tr>
+                                <th class="bg-light">Engineering Justification:</th>
+                                <td>{{ disposition.engineering_justification }}</td>
+                            </tr>
+                            {% if disposition.rework_instructions %}
+                            <tr>
+                                <th class="bg-light">Rework Instructions:</th>
+                                <td>
+                                    <div class="fw-bold text-warning-emphasis mb-1">{{ disposition.rework_instructions }}</div>
+                                    {% if disposition.rework_traveler %}
+                                        <div class="small">
+                                            <strong>Generated Rework Traveler:</strong> 
+                                            <a href="{% url 'production:traveler_detail' disposition.rework_traveler.id %}" class="fw-bold font-monospace">
+                                                {{ disposition.rework_traveler.traveler_barcode }} &rarr;
+                                            </a>
+                                        </div>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endif %}
+                            {% if disposition.scrap_cost_code %}
+                            <tr>
+                                <th class="bg-light">Scrap Cost Code:</th>
+                                <td>
+                                    <span class="font-monospace fw-bold text-danger">{{ disposition.scrap_cost_code }}</span>
+                                    {% if disposition.scrap_verified_at_bin %}
+                                        <span class="badge bg-success ms-2"><i class="bi bi-check-circle me-1"></i>Verified Deposited in Scrap Bin</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endif %}
+                            {% if disposition.debit_note_number %}
+                            <tr>
+                                <th class="bg-light">Supplier Debit Note No:</th>
+                                <td class="font-monospace fw-bold">{{ disposition.debit_note_number }}</td>
+                            </tr>
+                            {% endif %}
+                            {% if disposition.customer_approval_doc %}
+                            <tr>
+                                <th class="bg-light">Customer Concession Document:</th>
+                                <td>
+                                    <a href="{{ disposition.customer_approval_doc.url }}" target="_blank" class="btn btn-sm btn-outline-info text-dark">
+                                        <i class="bi bi-paperclip me-1"></i> View Customer Concession File
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endif %}
+                            <tr>
+                                <th class="bg-light">Authorized Authority:</th>
+                                <td>
+                                    <strong>{{ disposition.authorized_by.get_full_name|default:disposition.authorized_by.username }}</strong> 
+                                    (ID: {{ disposition.authorized_by.employee_id }} - {{ disposition.authorized_by.get_role_display }})
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="p-3 bg-light rounded border text-muted small">
+                    <i class="bi bi-lock-fill me-1 text-primary"></i>
+                    <strong>Quality Integrity Audit:</strong> This MRB disposition is an immutable record logged in accordance with factory quality standard ISO 9001:2015 Section 8.7 (Non-conforming outputs).
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

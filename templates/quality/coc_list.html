@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block title %}Certificates of Conformance (CoC) - Zapuza Quality OS{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between mb-4 border-bottom pb-3">
+    <div>
+        <h2 class="h3 fw-bold mb-1 text-dark">
+            <i class="bi bi-award text-primary me-2"></i>Certificates of Conformance (CoC)
+        </h2>
+        <span class="text-muted small">
+            BRD Section 11: Official quality release certificates backed by MTC traceability and verified PDI inspection records.
+        </span>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'quality:pdi_queue' %}?stage=cleared" class="btn btn-primary">
+            <i class="bi bi-patch-check me-1"></i> PDI Approved Queue
+        </a>
+    </div>
+</div>
+
+<!-- Filters & Search -->
+<div class="card shadow-sm border-0 mb-4 bg-light">
+    <div class="card-body p-3">
+        <div class="row g-3 align-items-center">
+            <div class="col-md-8 d-flex flex-wrap gap-2 align-items-center">
+                <span class="small fw-bold text-muted text-uppercase me-2">Status:</span>
+                <a href="{% url 'quality:coc_list' %}" class="btn btn-sm {% if not selected_status %}btn-dark{% else %}btn-outline-secondary{% endif %}">
+                    All Certificates
+                </a>
+                {% for code, label in statuses %}
+                <a href="{% url 'quality:coc_list' %}?status={{ code }}" class="btn btn-sm {% if selected_status == code %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                    {{ label }}
+                </a>
+                {% endfor %}
+            </div>
+            <div class="col-md-4">
+                <form method="get" action="{% url 'quality:coc_list' %}" class="d-flex">
+                    {% if selected_status %}<input type="hidden" name="status" value="{{ selected_status }}">{% endif %}
+                    <div class="input-group input-group-sm">
+                        <input type="text" name="q" value="{{ search_query }}" class="form-control" placeholder="Search cert #, traveler, WO, part...">
+                        <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-search"></i></button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Certificates Table -->
+<div class="card shadow-sm border-0">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-dark small text-uppercase">
+                <tr>
+                    <th>Certificate No / Rev</th>
+                    <th>Part & Drawing</th>
+                    <th>Work Order & Traveler</th>
+                    <th>Heat & MTC</th>
+                    <th>Sign-off & Date</th>
+                    <th>Status</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for coc in certificates %}
+                <tr>
+                    <td>
+                        <span class="fw-bold text-dark font-monospace">{{ coc.certificate_number }}</span>
+                        <div class="small text-muted">Version {{ coc.version }}</div>
+                    </td>
+                    <td>
+                        <div class="fw-bold text-dark">{{ coc.work_order.part.part_number }}</div>
+                        <div class="small text-muted">{{ coc.work_order.part.part_name }} ({{ coc.work_order.part.revision_level }})</div>
+                    </td>
+                    <td>
+                        <div class="fw-bold">{{ coc.work_order.work_order_number }}</div>
+                        <div class="small text-muted font-monospace">{{ coc.traveler.traveler_barcode }}</div>
+                    </td>
+                    <td>
+                        <div><span class="badge bg-light text-dark border">Heat #{{ coc.work_order.raw_material_lot.heat_number }}</span></div>
+                        <small class="text-success"><i class="bi bi-check-circle-fill me-1"></i>MTC Verified</small>
+                    </td>
+                    <td>
+                        <div class="small fw-bold">{{ coc.issued_by.employee_id }}</div>
+                        <div class="small text-muted">{{ coc.issued_at|date:"Y-m-d H:i" }} UTC</div>
+                    </td>
+                    <td>
+                        {% if coc.status == 'ACTIVE' %}
+                            <span class="badge bg-success"><i class="bi bi-check2-circle me-1"></i>Active / Valid</span>
+                        {% elif coc.status == 'SUPERSEDED' %}
+                            <span class="badge bg-secondary"><i class="bi bi-arrow-repeat me-1"></i>Superseded</span>
+                        {% else %}
+                            <span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>Revoked</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        <div class="btn-group btn-group-sm">
+                            <a href="{% url 'quality:coc_detail' coc.id %}" class="btn btn-outline-primary" title="View Document">
+                                <i class="bi bi-file-earmark-text me-1"></i> View
+                            </a>
+                            <a href="{% url 'quality:coc_download' coc.id %}" class="btn btn-outline-success" title="Download PDF">
+                                <i class="bi bi-download me-1"></i> PDF
+                            </a>
+                            <a href="{% url 'quality:coc_verify' coc.verification_token %}" target="_blank" class="btn btn-outline-secondary" title="Public QR Verification">
+                                <i class="bi bi-qr-code"></i>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center py-5 text-muted">
+                        <i class="bi bi-award fs-2 d-block mb-2 text-secondary"></i>
+                        No Certificates of Conformance found matching the criteria.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

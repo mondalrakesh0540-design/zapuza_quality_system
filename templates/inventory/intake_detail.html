@@ -1,0 +1,283 @@
+{% extends "base.html" %}
+
+{% block title %}Lot {{ lot.lot_number }} - Raw Material Pedigree{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard:index' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'inventory:intake_list' %}">Raw Material & Traceability</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{{ lot.lot_number }}</li>
+    </ol>
+</nav>
+
+<div class="d-flex flex-wrap align-items-center justify-content-between mb-4 border-bottom pb-3">
+    <div>
+        <h2 class="h3 fw-bold mb-1 text-dark">
+            <span class="badge bg-dark font-monospace me-2">{{ lot.lot_number }}</span>
+            Heat #{{ lot.heat_number }}
+        </h2>
+        <span class="text-muted small">
+            Grade: <strong>{{ lot.material_grade.code }}</strong> ({{ lot.material_grade.name }}) &bull; Supplier: <strong>{{ lot.supplier_name }}</strong>
+        </span>
+    </div>
+    <div class="d-flex gap-2 mt-2 mt-md-0">
+        {% if not lot.mtc_verified and user.can_manage_templates %}
+        <a href="{% url 'inventory:mtc_verify' pk=lot.pk %}" class="btn btn-warning text-dark fw-bold">
+            <i class="bi bi-patch-check me-1"></i> Verify Mill Test Certificate
+        </a>
+        {% endif %}
+        {% if lot.lab_status == 'IN_LAB_TESTING' and user.can_manage_templates %}
+        <a href="{% url 'inventory:lab_test_create' pk=lot.pk %}" class="btn btn-primary" style="background-color: #0f2c59;">
+            <i class="bi bi-flask me-1"></i> Enter Lab Spectro Results
+        </a>
+        {% endif %}
+        {% if lot.status != 'QUARANTINED' %}
+        <a href="{% url 'inventory:sncr_create' pk=lot.pk %}" class="btn btn-danger">
+            <i class="bi bi-exclamation-octagon me-1"></i> Reject & Quarantine (SNCR)
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Left Column: Clearance Status & Details -->
+    <div class="col-lg-7">
+        <!-- Live Issuance Interlock Banner -->
+        <div class="mb-4">
+            {% if can_issue %}
+            <div class="cleared-banner d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-shield-check fs-1 me-3 text-success"></i>
+                    <div>
+                        <h5 class="fw-bold mb-0">Production Work Order Release: CLEARED</h5>
+                        <p class="mb-0 small text-success">
+                            MTC verified and lab tests passed. This heat lot is authorized to be issued to machining work orders.
+                        </p>
+                    </div>
+                </div>
+                <span class="badge bg-success fs-6 px-3 py-2">UNLOCKED</span>
+            </div>
+            {% else %}
+            <div class="lockout-banner d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-shield-slash fs-1 me-3 text-danger"></i>
+                    <div>
+                        <h5 class="fw-bold mb-0">Production Work Order Release: BLOCKED</h5>
+                        <p class="mb-0 small text-danger">
+                            {{ issue_reason }}
+                        </p>
+                    </div>
+                </div>
+                <span class="badge bg-danger fs-6 px-3 py-2">LOCKED</span>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Material Specifications Card -->
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-white py-3 fw-bold">
+                <i class="bi bi-info-circle me-2 text-primary"></i>Intake Lot Specifications & Traceability
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-sm-6">
+                        <small class="text-muted d-block">Internal Lot ID:</small>
+                        <span class="fw-bold fs-5 font-monospace text-primary">{{ lot.lot_number }}</span>
+                    </div>
+                    <div class="col-sm-6">
+                        <small class="text-muted d-block">Mill Heat / Cast #:</small>
+                        <span class="fw-bold fs-5 font-monospace text-dark">{{ lot.heat_number }}</span>
+                    </div>
+                    <div class="col-sm-6">
+                        <small class="text-muted d-block">Material Grade:</small>
+                        <span class="fw-bold">{{ lot.material_grade.code }}</span>
+                        <div class="small text-muted">{{ lot.material_grade.name }}</div>
+                    </div>
+                    <div class="col-sm-6">
+                        <small class="text-muted d-block">Physical Quantity:</small>
+                        <span class="fw-bold fs-5">{{ lot.quantity_received }} {{ lot.get_unit_display }}</span>
+                    </div>
+                    <div class="col-sm-6">
+                        <small class="text-muted d-block">Mill Supplier:</small>
+                        <span class="fw-semibold">{{ lot.supplier_name }}</span>
+                    </div>
+                    <div class="col-sm-6">
+                        <small class="text-muted d-block">Purchase Order Reference:</small>
+                        <span class="font-monospace fw-semibold">{{ lot.purchase_order_no }}</span>
+                    </div>
+                    <div class="col-sm-6">
+                        <small class="text-muted d-block">Store Room Status:</small>
+                        {% if lot.status == 'QUARANTINED' %}
+                            <span class="badge bg-danger fs-6">SUPPLIER QUARANTINE</span>
+                        {% elif lot.status == 'IN_STORE' %}
+                            <span class="badge bg-success fs-6">IN RAW STORE</span>
+                        {% else %}
+                            <span class="badge bg-secondary fs-6">{{ lot.get_status_display }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="col-sm-6">
+                        <small class="text-muted d-block">Dock Intake Logged By:</small>
+                        <span class="fw-semibold">{{ lot.received_by.get_full_name|default:lot.received_by.username }}</span>
+                        <small class="text-muted">({{ lot.created_at|date:"Y-m-d H:i" }})</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Laboratory Testing History -->
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <span class="fw-bold"><i class="bi bi-flask me-2 text-primary"></i>Laboratory Spectro & Mechanical Analysis</span>
+                <span class="badge {% if lot.lab_status == 'PASSED' %}bg-success{% elif lot.lab_status == 'IN_LAB_TESTING' %}bg-primary{% elif lot.lab_status == 'FAILED' %}bg-danger{% else %}bg-secondary{% endif %}">
+                    {{ lot.get_lab_status_display }}
+                </span>
+            </div>
+            <div class="card-body">
+                {% if lab_tests %}
+                    {% for test in lab_tests %}
+                    <div class="border rounded p-3 mb-3 {% if test.is_passed %}border-success bg-success-subtle{% else %}border-danger bg-danger-subtle{% endif %}">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <strong>Test Date: {{ test.test_date }} &bull; Analyst: {{ test.tested_by.get_full_name|default:test.tested_by.username }}</strong>
+                            {% if test.is_passed %}
+                                <span class="badge bg-success">CONFORMS (PASSED)</span>
+                            {% else %}
+                                <span class="badge bg-danger">OUT OF SPEC (FAILED)</span>
+                            {% endif %}
+                        </div>
+
+                        <!-- Chemical Readings Grid -->
+                        <div class="row g-2 small text-center mb-2">
+                            <div class="col border bg-white p-1 rounded">
+                                <span class="text-muted d-block">Carbon (C)</span>
+                                <strong>{{ test.carbon_actual|default:"-" }}%</strong>
+                                <small class="text-muted d-block">[{{ lot.material_grade.carbon_min }} - {{ lot.material_grade.carbon_max }}%]</small>
+                            </div>
+                            <div class="col border bg-white p-1 rounded">
+                                <span class="text-muted d-block">Manganese (Mn)</span>
+                                <strong>{{ test.manganese_actual|default:"-" }}%</strong>
+                                <small class="text-muted d-block">[{{ lot.material_grade.manganese_min }} - {{ lot.material_grade.manganese_max }}%]</small>
+                            </div>
+                            <div class="col border bg-white p-1 rounded">
+                                <span class="text-muted d-block">Silicon (Si)</span>
+                                <strong>{{ test.silicon_actual|default:"-" }}%</strong>
+                                <small class="text-muted d-block">[{{ lot.material_grade.silicon_min }} - {{ lot.material_grade.silicon_max }}%]</small>
+                            </div>
+                            <div class="col border bg-white p-1 rounded">
+                                <span class="text-muted d-block">Yield (MPa)</span>
+                                <strong>{{ test.yield_strength_actual|default:"-" }}</strong>
+                                <small class="text-muted d-block">[Min {{ lot.material_grade.yield_strength_min }}]</small>
+                            </div>
+                            <div class="col border bg-white p-1 rounded">
+                                <span class="text-muted d-block">Tensile (MPa)</span>
+                                <strong>{{ test.tensile_strength_actual|default:"-" }}</strong>
+                                <small class="text-muted d-block">[Min {{ lot.material_grade.tensile_strength_min }}]</small>
+                            </div>
+                        </div>
+
+                        <div class="small">
+                            <strong>Summary:</strong> {{ test.evaluation_summary }}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted small mb-0">No lab test records logged yet for this intake lot.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Supplier Non-Conformance History -->
+        {% if ncrs %}
+        <div class="card shadow-sm border-danger mb-4">
+            <div class="card-header bg-danger text-white py-3 fw-bold">
+                <i class="bi bi-exclamation-octagon me-2"></i>Supplier Non-Conformance Reports (SNCR)
+            </div>
+            <div class="list-group list-group-flush">
+                {% for ncr in ncrs %}
+                <div class="list-group-item p-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <strong class="font-monospace text-danger">{{ ncr.sncr_number }}</strong>
+                        <span class="badge bg-danger">{{ ncr.get_disposition_display }}</span>
+                    </div>
+                    <div class="small fw-semibold text-dark">{{ ncr.get_reason_category_display }}</div>
+                    <p class="small text-muted mb-1">{{ ncr.defect_description }}</p>
+                    <small class="text-muted">Logged by {{ ncr.logged_by.employee_id }} on {{ ncr.created_at|date:"Y-m-d H:i" }}</small>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Right Column: MTC Document & Barcode Tag -->
+    <div class="col-lg-5">
+        <!-- Mill Test Certificate (MTC) Card -->
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-dark text-white py-3 fw-bold d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-file-earmark-pdf me-2 text-warning"></i>Mill Test Certificate (MTC)</span>
+                {% if lot.mtc_verified %}
+                    <span class="badge bg-success"><i class="bi bi-patch-check-fill me-1"></i>Verified</span>
+                {% else %}
+                    <span class="badge bg-warning text-dark"><i class="bi bi-clock me-1"></i>Unverified</span>
+                {% endif %}
+            </div>
+            <div class="card-body p-4 text-center">
+                {% if lot.mtc_file %}
+                    <div class="p-3 bg-light rounded border mb-3">
+                        <i class="bi bi-file-earmark-check-fill fs-1 text-danger"></i>
+                        <div class="fw-bold mt-2 text-truncate">{{ lot.mtc_file.name }}</div>
+                        <a href="{{ lot.mtc_file.url }}" target="_blank" class="btn btn-outline-primary btn-sm mt-2">
+                            <i class="bi bi-download me-1"></i> View / Download MTC
+                        </a>
+                    </div>
+                {% else %}
+                    <div class="alert alert-danger">No MTC file attached.</div>
+                {% endif %}
+
+                {% if lot.mtc_verified %}
+                    <div class="p-2 rounded bg-success-subtle border border-success text-success small">
+                        <strong>Verified By:</strong> {{ lot.mtc_verified_by.get_full_name|default:lot.mtc_verified_by.username }}
+                        <div>Signed: {{ lot.mtc_verified_at|date:"Y-m-d H:i:s" }}</div>
+                    </div>
+                {% else %}
+                    <div class="p-2 rounded bg-warning-subtle border border-warning text-dark small mb-3">
+                        MTC has not been approved by Quality. Work order release is locked.
+                    </div>
+                    {% if user.can_manage_templates %}
+                    <a href="{% url 'inventory:mtc_verify' pk=lot.pk %}" class="btn btn-warning text-dark fw-bold w-100">
+                        <i class="bi bi-patch-check me-1"></i> Verify & Sign Off MTC
+                    </a>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Physical Barcode Label for Raw Stock (Section 3.2) -->
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-light py-3 fw-bold text-dark">
+                <i class="bi bi-upc-scan me-2 text-primary"></i>Physical Barcode Tag for Bundle Stacks
+            </div>
+            <div class="card-body text-center p-4">
+                <p class="small text-muted mb-3">
+                    Section 3.2: Weather-resistant barcode tag attached to each raw stock bundle or billet stack before moving to storage.
+                </p>
+
+                <div class="p-3 border border-3 border-dark rounded d-inline-block bg-white shadow-sm mb-3">
+                    <i class="bi bi-upc text-dark" style="font-size: 5rem; line-height: 1;"></i>
+                    <div class="font-monospace fw-bold fs-6 mt-1">{{ lot.barcode_identifier }}</div>
+                    <div class="small text-muted">{{ lot.material_grade.code }} &bull; Heat #{{ lot.heat_number }}</div>
+                </div>
+
+                <div class="d-flex justify-content-center gap-2">
+                    <button class="btn btn-outline-secondary btn-sm" onclick="navigator.clipboard.writeText('{{ lot.barcode_identifier }}'); alert('Barcode copied: {{ lot.barcode_identifier }}');">
+                        <i class="bi bi-clipboard me-1"></i> Copy Barcode
+                    </button>
+                    <button class="btn btn-outline-primary btn-sm" onclick="window.print();">
+                        <i class="bi bi-printer me-1"></i> Print Stock Tag
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

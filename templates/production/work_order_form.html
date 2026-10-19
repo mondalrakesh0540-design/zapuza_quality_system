@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}Create Production Work Order - Zapuza Quality OS{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard:index' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'production:work_order_list' %}">Production Work Orders</a></li>
+        <li class="breadcrumb-item active" aria-current="page">New Work Order</li>
+    </ol>
+</nav>
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow-lg border-0 rounded-3">
+            <div class="card-header bg-dark text-white p-4" style="background-color: #0f2c59 !important;">
+                <h4 class="fw-bold mb-0"><i class="bi bi-file-earmark-plus me-2"></i>Create Production Work Order</h4>
+                <small class="text-white-50">BRD Section 3.2 & 7.1: Strict Raw Material Lot Allocation & Traceability</small>
+            </div>
+            <div class="card-body p-4">
+                <div class="alert alert-info d-flex align-items-center mb-4">
+                    <i class="bi bi-shield-check fs-4 me-3 text-primary"></i>
+                    <div class="small">
+                        <strong>Server-Side Material Quality Interlock:</strong> Only raw material intake lots that have a verified MTC, passed incoming lab tests, and are not under quarantine are listed below. Unqualified material cannot be issued to production.
+                    </div>
+                </div>
+
+                <form method="POST">
+                    {% csrf_token %}
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="work_order_number" class="form-label fw-bold text-uppercase small text-muted">Work Order Number</label>
+                            <input type="text" name="work_order_number" id="work_order_number" class="form-control font-monospace text-uppercase" placeholder="e.g. WO-2026-001 (or leave blank to auto-generate)">
+                            <div class="form-text small">Leave blank to auto-assign the next sequential work order number.</div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="target_quantity" class="form-label fw-bold text-uppercase small text-muted">Planned Batch Quantity (pcs) *</label>
+                            <input type="number" name="target_quantity" id="target_quantity" class="form-control font-monospace" min="1" placeholder="e.g. 50" required>
+                        </div>
+
+                        <div class="col-md-12">
+                            <label for="part" class="form-label fw-bold text-uppercase small text-muted">Manufactured Component Part *</label>
+                            <select name="part" id="part" class="form-select" required>
+                                <option value="">-- Select Component Part to Manufacture --</option>
+                                {% for p in parts %}
+                                    <option value="{{ p.id }}">
+                                        {{ p.part_number }} - {{ p.part_name }} (Required Material Grade: {{ p.material_grade.code }})
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-12">
+                            <label for="raw_material_lot" class="form-label fw-bold text-uppercase small text-muted">Allocated Raw Material Lot *</label>
+                            <select name="raw_material_lot" id="raw_material_lot" class="form-select font-monospace" required>
+                                <option value="">-- Select Cleared Raw Material Lot --</option>
+                                {% for lot in lots %}
+                                    <option value="{{ lot.id }}">
+                                        {{ lot.lot_number }} | Heat: {{ lot.heat_number }} | Grade: {{ lot.material_grade.code }} (Avail: {{ lot.current_stock_quantity }} {{ lot.unit }})
+                                    </option>
+                                {% empty %}
+                                    <option value="" disabled>No raw material lots currently cleared for production</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text small text-muted">
+                                If your desired lot is not listed, verify that its MTC is approved and laboratory chemical/mechanical tests have passed.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-3 mt-4 pt-3 border-top">
+                        <a href="{% url 'production:work_order_list' %}" class="btn btn-outline-secondary w-50">Cancel</a>
+                        <button type="submit" class="btn btn-primary w-50 btn-lg shadow-sm" style="background-color: #0f2c59; border-color: #0f2c59;">
+                            <i class="bi bi-check-circle me-1"></i> Create Work Order (Draft)
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

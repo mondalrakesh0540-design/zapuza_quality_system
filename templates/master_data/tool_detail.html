@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block title %}{{ tool.tool_id }} - Gauge Details{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard:index' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'master_data:tool_list' %}">Tool Register</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{{ tool.tool_id }}</li>
+    </ol>
+</nav>
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-dark text-white p-4" style="background-color: #0f2c59 !important;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="badge bg-warning text-dark font-monospace mb-1">{{ tool.tool_id }}</span>
+                        <h4 class="fw-bold mb-0">{{ tool.name }}</h4>
+                        <small class="text-white-50">{{ tool.get_tool_type_display }} &bull; S/N: {{ tool.serial_number }}</small>
+                    </div>
+                    <div>
+                        {% if is_valid %}
+                            <span class="badge bg-success fs-6 px-3 py-2"><i class="bi bi-shield-check me-1"></i>CALIBRATED</span>
+                        {% else %}
+                            <span class="badge bg-danger fs-6 px-3 py-2"><i class="bi bi-shield-x me-1"></i>EXPIRED / BLOCKED</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-body p-4">
+                <!-- Status Banner -->
+                {% if is_valid %}
+                <div class="alert alert-success d-flex align-items-center mb-4">
+                    <i class="bi bi-check-circle-fill fs-3 me-3"></i>
+                    <div>
+                        <h6 class="fw-bold mb-1">Calibration Status: VALID</h6>
+                        <p class="mb-0 small">
+                            Calibration certificate is current until <strong>{{ tool.calibration_expiry_date }}</strong> ({{ days_left }} days remaining). This tool is approved for floor dimensional measurements.
+                        </p>
+                    </div>
+                </div>
+                {% else %}
+                <div class="alert alert-danger d-flex align-items-center mb-4">
+                    <i class="bi bi-x-octagon-fill fs-3 me-3"></i>
+                    <div>
+                        <h6 class="fw-bold mb-1">Expired Tool Calibration Lockout Enforced</h6>
+                        <p class="mb-0 small">
+                            Tool calibration interval expired on <strong>{{ tool.calibration_expiry_date }}</strong>. System blocks any dimensional entry referencing this tool under BRD Section 2.3. Return tool to tool crib for re-calibration.
+                        </p>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Tool Specifications -->
+                <div class="row g-3 mb-4">
+                    <div class="col-sm-6">
+                        <small class="text-muted d-block">Gauge Digital ID:</small>
+                        <span class="fw-bold font-monospace fs-5 text-primary">{{ tool.tool_id }}</span>
+                    </div>
+                    <div class="col-sm-6">
+                        <small class="text-muted d-block">Manufacturer Serial No:</small>
+                        <span class="fw-bold font-monospace">{{ tool.serial_number }}</span>
+                    </div>
+                    <div class="col-sm-6">
+                        <small class="text-muted d-block">Instrument Category:</small>
+                        <span class="badge bg-light text-dark border">{{ tool.get_tool_type_display }}</span>
+                    </div>
+                    <div class="col-sm-6">
+                        <small class="text-muted d-block">Crib Storage Location:</small>
+                        <span class="fw-semibold">{{ tool.storage_location }}</span>
+                    </div>
+                    <div class="col-sm-6">
+                        <small class="text-muted d-block">Last Calibration Date:</small>
+                        <span class="fw-semibold">{{ tool.calibration_date }}</span>
+                    </div>
+                    <div class="col-sm-6">
+                        <small class="text-muted d-block">Calibration Expiry Date:</small>
+                        <span class="fw-semibold {% if not is_valid %}text-danger fw-bold{% endif %}">{{ tool.calibration_expiry_date }}</span>
+                    </div>
+                </div>
+
+                {% if tool.notes %}
+                <div class="p-3 bg-light rounded mb-4">
+                    <small class="text-muted d-block fw-bold text-uppercase">Crib Notes / Standards:</small>
+                    <p class="mb-0 small">{{ tool.notes }}</p>
+                </div>
+                {% endif %}
+
+                <div class="d-flex justify-content-between">
+                    <a href="{% url 'master_data:tool_list' %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left me-1"></i> Back to Tool Register
+                    </a>
+                    <button class="btn btn-outline-primary" onclick="window.print();">
+                        <i class="bi bi-printer me-1"></i> Print Calibration Tag
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

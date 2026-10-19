@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+
+{% block title %}Daily PM Checklist - {{ workstation.machine_code }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard:index' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'master_data:workstation_list' %}">Workstations</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'master_data:workstation_detail' pk=workstation.pk %}">{{ workstation.machine_code }}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Daily PM Sign-Off</li>
+    </ol>
+</nav>
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow-lg border-0 rounded-3">
+            <div class="card-header bg-dark text-white p-4" style="background-color: #0f2c59 !important;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="badge bg-warning text-dark font-monospace mb-1">{{ workstation.machine_code }}</span>
+                        <h4 class="fw-bold mb-0">Daily Preventive Maintenance (PM) Checklist</h4>
+                        <small class="text-white-50">BRD Section 2.2 Machine & Workstation Setup Verification</small>
+                    </div>
+                    <div class="text-end">
+                        <div class="badge bg-secondary p-2">{{ today|date:"Y-m-d" }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-body p-4">
+                <form method="POST" id="pmForm">
+                    {% csrf_token %}
+
+                    <!-- Shift Selection -->
+                    <div class="mb-4">
+                        <label for="shift" class="form-label fw-bold text-uppercase small text-muted">Production Shift</label>
+                        <select name="shift" id="shift" class="form-select form-select-lg">
+                            {% for code, label in shifts %}
+                                <option value="{{ code }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Interactive PM Check Items -->
+                    <h6 class="fw-bold text-uppercase text-muted border-bottom pb-2 mb-3">
+                        <i class="bi bi-shield-check text-primary me-2"></i>Mandatory Setup & Safety Verification Items
+                    </h6>
+
+                    <div class="list-group mb-4 shadow-sm">
+                        <!-- Check 1: Zero Point -->
+                        <label class="list-group-item list-group-item-action d-flex align-items-center p-3">
+                            <input class="form-check-input me-3 pm-checkbox" type="checkbox" name="zero_point_verified" id="zero_point_verified" checked>
+                            <div class="flex-grow-1">
+                                <span class="fw-bold d-block">1. Machine Safety Zero-Point & Datum Verified</span>
+                                <small class="text-muted">Home positions calibrated; physical datum and work offsets verified against master block.</small>
+                            </div>
+                        </label>
+
+                        <!-- Check 2: Lubrication -->
+                        <label class="list-group-item list-group-item-action d-flex align-items-center p-3">
+                            <input class="form-check-input me-3 pm-checkbox" type="checkbox" name="lubrication_level_ok" id="lubrication_level_ok" checked>
+                            <div class="flex-grow-1">
+                                <span class="fw-bold d-block">2. Spindle & Guideway Lubrication Levels OK</span>
+                                <small class="text-muted">Automated lube tank oil level above minimum; pressure gauge reads nominal.</small>
+                            </div>
+                        </label>
+
+                        <!-- Check 3: Safety Interlocks -->
+                        <label class="list-group-item list-group-item-action d-flex align-items-center p-3">
+                            <input class="form-check-input me-3 pm-checkbox" type="checkbox" name="safety_interlocks_ok" id="safety_interlocks_ok" checked>
+                            <div class="flex-grow-1">
+                                <span class="fw-bold d-block">3. Safety Enclosure Interlocks & Door Switches Tested</span>
+                                <small class="text-muted">Interlock prevents spindle engagement when safety door or guard is ajar.</small>
+                            </div>
+                        </label>
+
+                        <!-- Check 4: Spindle Runout -->
+                        <label class="list-group-item list-group-item-action d-flex align-items-center p-3">
+                            <input class="form-check-input me-3 pm-checkbox" type="checkbox" name="spindle_runout_ok" id="spindle_runout_ok" checked>
+                            <div class="flex-grow-1">
+                                <span class="fw-bold d-block">4. Spindle Taper Cleanliness & Runout Verified</span>
+                                <small class="text-muted">No swarf chips in spindle taper; tool seating checked with test arbor.</small>
+                            </div>
+                        </label>
+
+                        <!-- Check 5: Pneumatic Pressure -->
+                        <label class="list-group-item list-group-item-action d-flex align-items-center p-3">
+                            <input class="form-check-input me-3 pm-checkbox" type="checkbox" name="pneumatic_pressure_ok" id="pneumatic_pressure_ok" checked>
+                            <div class="flex-grow-1">
+                                <span class="fw-bold d-block">5. Main Pneumatic & Hydraulic Pressure Verified</span>
+                                <small class="text-muted">Line pressure meets machine requirements (typically 6.0 - 7.5 bar).</small>
+                            </div>
+                        </label>
+
+                        <!-- Check 6: Emergency Stop -->
+                        <label class="list-group-item list-group-item-action d-flex align-items-center p-3">
+                            <input class="form-check-input me-3 pm-checkbox" type="checkbox" name="emergency_stop_tested" id="emergency_stop_tested" checked>
+                            <div class="flex-grow-1">
+                                <span class="fw-bold d-block">6. Physical Emergency Stop (E-Stop) Button Tested</span>
+                                <small class="text-muted">Emergency button physically halts drives immediately upon depression.</small>
+                            </div>
+                        </label>
+                    </div>
+
+                    <!-- Real-Time Evaluation Live Box -->
+                    <div id="liveEvaluationBox" class="p-3 rounded mb-4 bg-success-subtle border border-success text-success">
+                        <div class="d-flex align-items-center">
+                            <i id="liveEvalIcon" class="bi bi-check-circle-fill fs-3 me-3"></i>
+                            <div>
+                                <h6 id="liveEvalTitle" class="fw-bold mb-1">ALL SAFETY CHECKS PASSED</h6>
+                                <p id="liveEvalDesc" class="mb-0 small">
+                                    Submitting this checklist will grant <strong>cleared status</strong> for {{ workstation.machine_code }} and enable job selection for operators.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Remarks -->
+                    <div class="mb-4">
+                        <label for="remarks" class="form-label fw-bold text-uppercase small text-muted">Technician / Supervisor Remarks (Optional)</label>
+                        <textarea name="remarks" id="remarks" rows="2" class="form-control" placeholder="Note any slight maintenance observations, filter change dates, or tooling notes..."></textarea>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <div class="d-flex gap-3">
+                        <a href="{% url 'master_data:workstation_detail' pk=workstation.pk %}" class="btn btn-outline-secondary w-50">
+                            Cancel
+                        </a>
+                        <button type="submit" id="btnSubmitPm" class="btn btn-primary w-50 btn-lg shadow-sm" style="background-color: #0f2c59; border-color: #0f2c59;">
+                            <i class="bi bi-shield-check me-2"></i> Electronically Sign & Submit
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function updateLiveEvaluation() {
+    const checkboxes = document.querySelectorAll('.pm-checkbox');
+    let allChecked = true;
+    checkboxes.forEach(cb => {
+        if (!cb.checked) allChecked = false;
+    });
+
+    const box = document.getElementById('liveEvaluationBox');
+    const icon = document.getElementById('liveEvalIcon');
+    const title = document.getElementById('liveEvalTitle');
+    const desc = document.getElementById('liveEvalDesc');
+    const btn = document.getElementById('btnSubmitPm');
+
+    if (allChecked) {
+        box.className = 'p-3 rounded mb-4 bg-success-subtle border border-success text-success';
+        icon.className = 'bi bi-check-circle-fill fs-3 me-3';
+        title.innerText = 'ALL SAFETY CHECKS PASSED';
+        desc.innerHTML = 'Submitting this checklist will grant <strong>cleared status</strong> for {{ workstation.machine_code }} and enable job selection.';
+        btn.innerHTML = '<i class="bi bi-shield-check me-2"></i> Electronically Sign & Clear Machine';
+        btn.className = 'btn btn-success w-50 btn-lg shadow-sm';
+    } else {
+        box.className = 'p-3 rounded mb-4 bg-danger-subtle border border-danger text-danger';
+        icon.className = 'bi bi-exclamation-triangle-fill fs-3 me-3';
+        title.innerText = 'WARNING: CHECKLIST HAS FAILED CHECKS';
+        desc.innerHTML = 'One or more items are unchecked. Submitting will register a <strong>PM Lockout</strong>, preventing any job selection.';
+        btn.innerHTML = '<i class="bi bi-lock-fill me-2"></i> Submit Failed PM & Lock Machine';
+        btn.className = 'btn btn-danger w-50 btn-lg shadow-sm';
+    }
+}
+
+document.querySelectorAll('.pm-checkbox').forEach(cb => {
+    cb.addEventListener('change', updateLiveEvaluation);
+});
+
+// Run once on initial load
+updateLiveEvaluation();
+</script>
+{% endblock %}

@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block title %}Sign In - Zapuza Quality OS{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-5 col-lg-5">
+            <!-- Main Login Card -->
+            <div class="card shadow-lg border-0 rounded-3 mb-4">
+                <div class="card-header bg-dark text-white p-4 text-center rounded-top-3" style="background-color: #0f2c59 !important;">
+                    <div class="d-inline-flex p-3 rounded-circle bg-warning text-dark mb-2">
+                        <i class="bi bi-shield-lock-fill fs-2"></i>
+                    </div>
+                    <h4 class="fw-bold mb-0">Shopfloor Terminal Sign-In</h4>
+                    <small class="text-white-50">Zapuza Factory Operations & Quality Control</small>
+                </div>
+                <div class="card-body p-4">
+                    <form method="POST" action="{% url 'accounts:login' %}">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="username" class="form-label fw-bold small text-uppercase">Username or Employee ID</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light"><i class="bi bi-person"></i></span>
+                                <input type="text" class="form-control" id="username" name="username" placeholder="e.g. plant.manager" required autofocus>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="password" class="form-label fw-bold small text-uppercase">Security Password</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light"><i class="bi bi-key"></i></span>
+                                <input type="password" class="form-control" id="password" name="password" placeholder="••••••••" required>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100 btn-lg shadow-sm" style="background-color: #0f2c59; border-color: #0f2c59;">
+                            <i class="bi bi-box-arrow-in-right me-2"></i> Sign In to Terminal
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Role Quick Switch / Demo Evaluation Card -->
+        <div class="col-md-7 col-lg-6">
+            <div class="card shadow-sm border-0 rounded-3 h-100">
+                <div class="card-header bg-light py-3 border-bottom d-flex align-items-center justify-content-between">
+                    <span class="fw-bold text-dark"><i class="bi bi-lightning-charge-fill text-warning me-2"></i>Quick Role Evaluator (One-Click Login)</span>
+                    <span class="badge bg-primary">5 Core Roles</span>
+                </div>
+                <div class="card-body p-4">
+                    <p class="text-muted small mb-3">
+                        Select any role below to authenticate instantly and evaluate role-specific features and permissions defined in the BRD:
+                    </p>
+
+                    <form method="POST" action="{% url 'accounts:login' %}" class="d-flex flex-column gap-2">
+                        {% csrf_token %}
+                        
+                        <!-- Plant Manager -->
+                        <button type="submit" name="demo_role" value="PLANT_MANAGER" class="btn btn-outline-dark text-start p-3 d-flex align-items-center justify-content-between">
+                            <div>
+                                <span class="badge bg-purple text-white mb-1" style="background-color: #6f42c1;">Plant Manager</span>
+                                <div class="fw-bold text-dark">EMP-101 (plant.manager)</div>
+                                <small class="text-muted">Total factory oversight, plant KPIs, user admin & high-level overrides</small>
+                            </div>
+                            <i class="bi bi-chevron-right fs-4 text-muted"></i>
+                        </button>
+
+                        <!-- Quality Manager -->
+                        <button type="submit" name="demo_role" value="QUALITY_MANAGER" class="btn btn-outline-primary text-start p-3 d-flex align-items-center justify-content-between">
+                            <div>
+                                <span class="badge bg-primary text-white mb-1">Quality Manager</span>
+                                <div class="fw-bold text-dark">EMP-102 (quality.manager)</div>
+                                <small class="text-muted">Approves inspection templates, reviews audits & issues official concessions</small>
+                            </div>
+                            <i class="bi bi-chevron-right fs-4 text-muted"></i>
+                        </button>
+
+                        <!-- Quality Engineer -->
+                        <button type="submit" name="demo_role" value="QUALITY_ENGINEER" class="btn btn-outline-info text-start p-3 d-flex align-items-center justify-content-between">
+                            <div>
+                                <span class="badge bg-info text-dark mb-1">Quality Engineer</span>
+                                <div class="fw-bold text-dark">EMP-103 (quality.engineer)</div>
+                                <small class="text-muted">Drafts inspection checklists, uploads blueprints, pins inspection points & tolerances</small>
+                            </div>
+                            <i class="bi bi-chevron-right fs-4 text-muted"></i>
+                        </button>
+
+                        <!-- Shift Supervisor -->
+                        <button type="submit" name="demo_role" value="SHIFT_SUPERVISOR" class="btn btn-outline-warning text-start p-3 d-flex align-items-center justify-content-between">
+                            <div>
+                                <span class="badge bg-warning text-dark mb-1">Shift Supervisor</span>
+                                <div class="fw-bold text-dark">EMP-104 (shift.supervisor)</div>
+                                <small class="text-muted">Signs off daily machine PM checks, reviews completed floor inspections & manages quarantine</small>
+                            </div>
+                            <i class="bi bi-chevron-right fs-4 text-muted"></i>
+                        </button>
+
+                        <!-- QA Floor Inspector -->
+                        <button type="submit" name="demo_role" value="QA_FLOOR_INSPECTOR" class="btn btn-outline-success text-start p-3 d-flex align-items-center justify-content-between">
+                            <div>
+                                <span class="badge bg-success text-white mb-1">QA Floor Inspector</span>
+                                <div class="fw-bold text-dark">EMP-105 (qa.inspector)</div>
+                                <small class="text-muted">Tablet interface, station QR verification, locked dimensional entry & defect photos</small>
+                            </div>
+                            <i class="bi bi-chevron-right fs-4 text-muted"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

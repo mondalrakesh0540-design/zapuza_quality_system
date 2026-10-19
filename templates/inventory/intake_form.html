@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block title %}Dock Raw Material Intake - Zapuza Quality OS{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard:index' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'inventory:intake_list' %}">Raw Material & Traceability</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Dock Receiving Entry</li>
+    </ol>
+</nav>
+
+<div class="row justify-content-center">
+    <div class="col-lg-9">
+        <div class="card shadow-lg border-0 rounded-3">
+            <div class="card-header bg-dark text-white p-4" style="background-color: #0f2c59 !important;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="fw-bold mb-0"><i class="bi bi-box-seam me-2"></i>Dock Receiving & MTC Logging Entry</h4>
+                        <small class="text-white-50">BRD Section 3.1 & 3.2: Raw Material Intake Workflow</small>
+                    </div>
+                    <span class="badge bg-warning text-dark px-3 py-2">Dock Intake Gate</span>
+                </div>
+            </div>
+
+            <div class="card-body p-4">
+                <form method="POST" enctype="multipart/form-data">
+                    {% csrf_token %}
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label for="heat_number" class="form-label fw-bold text-uppercase small text-muted">Mill Heat / Cast Number *</label>
+                            <input type="text" name="heat_number" id="heat_number" class="form-control form-control-lg font-monospace text-uppercase" placeholder="e.g. H-8042" required autofocus>
+                            <small class="text-muted">Physically stamped on metal bundles or billets. Critical for recall tracing.</small>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="lot_number" class="form-label fw-bold text-uppercase small text-muted">Internal Lot ID (Optional)</label>
+                            <input type="text" name="lot_number" id="lot_number" class="form-control form-control-lg font-monospace" placeholder="Leave blank to auto-generate (e.g. LOT-2026-001)">
+                            <small class="text-muted">Unique internal identification code for floor tracking.</small>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="supplier_name" class="form-label fw-bold text-uppercase small text-muted">Steel Mill / Supplier Name *</label>
+                            <input type="text" name="supplier_name" id="supplier_name" class="form-control" placeholder="e.g. Jindal Steel & Power Ltd" required>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="purchase_order_no" class="form-label fw-bold text-uppercase small text-muted">Purchase Order (PO) Number *</label>
+                            <input type="text" name="purchase_order_no" id="purchase_order_no" class="form-control font-monospace" placeholder="e.g. PO-2026-891" required>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="material_grade" class="form-label fw-bold text-uppercase small text-muted">Engineering Material Grade *</label>
+                            <select name="material_grade" id="material_grade" class="form-select form-select-lg" required>
+                                <option value="">-- Select Material Grade --</option>
+                                {% for g in grades %}
+                                    <option value="{{ g.id }}">
+                                        {{ g.code }} - {{ g.name }} {% if g.requires_lab_testing %}(Requires Lab Spectro){% endif %}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted">Defines mandatory chemical spectro and mechanical limits.</small>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="quantity_received" class="form-label fw-bold text-uppercase small text-muted">Physical Quantity Received *</label>
+                            <input type="number" step="0.01" name="quantity_received" id="quantity_received" class="form-control form-control-lg font-monospace" placeholder="e.g. 5000.00" required>
+                        </div>
+
+                        <div class="col-md-2">
+                            <label for="unit" class="form-label fw-bold text-uppercase small text-muted">Unit</label>
+                            <select name="unit" id="unit" class="form-select form-select-lg">
+                                {% for code, label in units %}
+                                    <option value="{{ code }}">{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Mandatory MTC File Upload -->
+                    <div class="p-3 rounded border border-2 border-primary bg-light mb-4">
+                        <label for="mtc_file" class="form-label fw-bold text-dark d-flex align-items-center">
+                            <i class="bi bi-file-earmark-pdf-fill text-danger fs-3 me-2"></i>
+                            Attach Supplier Mill Test Certificate (MTC) *
+                        </label>
+                        <input type="file" name="mtc_file" id="mtc_file" class="form-control form-control-lg" accept=".pdf,.png,.jpg,.jpeg" required>
+                        <div class="small text-muted mt-2">
+                            <i class="bi bi-shield-lock-fill text-primary me-1"></i>
+                            <strong>Mandatory BRD Rule (Section 3.2):</strong> An intake <em>cannot</em> be saved without an attached readable MTC file. This document certifies heat chemistry before releasing metal to the floor.
+                        </div>
+                    </div>
+
+                    <!-- Notes -->
+                    <div class="mb-4">
+                        <label for="notes" class="form-label fw-bold text-uppercase small text-muted">Receiving Clerk Notes (Optional)</label>
+                        <textarea name="notes" id="notes" rows="2" class="form-control" placeholder="Note physical bundle condition, heat stamp clarity, or truck delivery notes..."></textarea>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="d-flex gap-3">
+                        <a href="{% url 'inventory:intake_list' %}" class="btn btn-outline-secondary w-50">Cancel</a>
+                        <button type="submit" class="btn btn-primary w-50 btn-lg shadow-sm" style="background-color: #0f2c59; border-color: #0f2c59;">
+                            <i class="bi bi-check-circle me-2"></i> Log Dock Receiving & Quarantine Check
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block title %}Production Work Orders & Job Travelers - Zapuza Quality OS{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between mb-4 border-bottom pb-3">
+    <div>
+        <h2 class="h3 fw-bold mb-1 text-dark">
+            <i class="bi bi-card-checklist text-primary me-2"></i>Production Work Orders & Digital Job Travelers
+        </h2>
+        <span class="text-muted small">
+            BRD Section 7.1: Shopfloor work orders, raw material lot allocation, and digital job travelers with sequential routing interlocks.
+        </span>
+    </div>
+    {% if user.can_manage_work_orders %}
+    <div>
+        <a href="{% url 'production:work_order_create' %}" class="btn btn-primary" style="background-color: #0f2c59; border-color: #0f2c59;">
+            <i class="bi bi-plus-circle me-1"></i> Create Work Order
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Status Filter Pills -->
+<div class="card shadow-sm border-0 mb-4 bg-light">
+    <div class="card-body p-3">
+        <form method="GET" class="row g-2 align-items-center">
+            <div class="col-md-10">
+                <div class="d-flex flex-wrap gap-2 align-items-center">
+                    <span class="small fw-bold text-muted text-uppercase me-2">Filter Status:</span>
+                    <a href="{% url 'production:work_order_list' %}" class="btn btn-sm {% if not selected_status %}btn-dark{% else %}btn-outline-secondary{% endif %}">
+                        All Work Orders ({{ orders.count }})
+                    </a>
+                    {% for code, label in statuses %}
+                        <a href="{% url 'production:work_order_list' %}?status={{ code }}" class="btn btn-sm {% if selected_status == code %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                            {{ label }}
+                        </a>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="col-md-2 text-end">
+                {% if selected_status %}
+                    <a href="{% url 'production:work_order_list' %}" class="btn btn-sm btn-outline-danger">Clear Filter</a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Work Orders Table -->
+<div class="card shadow-sm border-0">
+    <div class="table-responsive">
+        <table class="table table-hover table-industrial align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Work Order #</th>
+                    <th>Component Part</th>
+                    <th>Allocated Raw Stock Lot</th>
+                    <th>Target Qty</th>
+                    <th>Status</th>
+                    <th>Release Info</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in orders %}
+                <tr>
+                    <td>
+                        <strong class="font-monospace fs-6 text-primary">{{ order.work_order_number }}</strong>
+                        {% if order.traveler %}
+                            <div class="small text-muted font-monospace">
+                                <i class="bi bi-upc-scan me-1"></i>{{ order.traveler.traveler_barcode }}
+                            </div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="fw-bold">{{ order.part.part_number }}</div>
+                        <small class="text-muted">{{ order.part.part_name }}</small>
+                    </td>
+                    <td>
+                        <span class="badge bg-light text-dark border font-monospace">{{ order.raw_material_lot.lot_number }}</span>
+                        <div class="small text-muted">
+                            Heat: <strong class="font-monospace">{{ order.raw_material_lot.heat_number }}</strong>
+                            &bull; Grade: <strong>{{ order.raw_material_lot.material_grade.code }}</strong>
+                        </div>
+                    </td>
+                    <td>
+                        <strong class="fs-6">{{ order.target_quantity }}</strong> pcs
+                    </td>
+                    <td>
+                        {% if order.status == 'DRAFT' %}
+                            <span class="badge bg-warning text-dark px-2 py-1"><i class="bi bi-pencil me-1"></i>Draft (Planned)</span>
+                        {% elif order.status == 'RELEASED' %}
+                            <span class="badge bg-info text-dark px-2 py-1"><i class="bi bi-broadcast me-1"></i>Released to Shopfloor</span>
+                        {% elif order.status == 'IN_PROGRESS' %}
+                            <span class="badge bg-primary px-2 py-1"><i class="bi bi-gear-wide-connected me-1"></i>In Production</span>
+                        {% elif order.status == 'COMPLETED' %}
+                            <span class="badge bg-success px-2 py-1"><i class="bi bi-check-all me-1"></i>Fully Completed</span>
+                        {% elif order.status == 'ON_HOLD' %}
+                            <span class="badge bg-danger px-2 py-1"><i class="bi bi-pause-circle me-1"></i>Quality Hold</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if order.released_by %}
+                            <div class="small">
+                                <i class="bi bi-person-check me-1 text-success"></i>{{ order.released_by.employee_id }}
+                            </div>
+                            <small class="text-muted">{{ order.released_at|date:"Y-m-d H:i" }}</small>
+                        {% else %}
+                            <span class="text-muted small">Not Released</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        <div class="d-inline-flex gap-1">
+                            {% if order.status == 'DRAFT' %}
+                                {% if user.can_release_work_orders %}
+                                <form method="POST" action="{% url 'production:work_order_release' pk=order.pk %}">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-success" title="Release to Shopfloor and Generate Traveler">
+                                        <i class="bi bi-play-circle me-1"></i> Release
+                                    </button>
+                                </form>
+                                {% endif %}
+                            {% else %}
+                                {% if order.traveler %}
+                                <a href="{% url 'production:traveler_detail' pk=order.traveler.pk %}" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-upc-scan me-1"></i> Job Traveler
+                                </a>
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center text-muted py-4">No production work orders found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

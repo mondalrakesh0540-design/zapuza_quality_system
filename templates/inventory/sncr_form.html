@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}Log SNCR - Lot {{ lot.lot_number }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard:index' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'inventory:intake_list' %}">Raw Material & Traceability</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'inventory:intake_detail' pk=lot.pk %}">{{ lot.lot_number }}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Log Supplier NCR</li>
+    </ol>
+</nav>
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow-lg border-danger border-2 rounded-3">
+            <div class="card-header bg-danger text-white p-4">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="badge bg-white text-danger font-monospace mb-1">{{ lot.lot_number }}</span>
+                        <h4 class="fw-bold mb-0"><i class="bi bi-exclamation-octagon me-2"></i>Supplier Non-Conformance Report (SNCR)</h4>
+                        <small class="text-white-50">BRD Section 3.3: Material Rejection & Supplier Quarantine</small>
+                    </div>
+                    <span class="badge bg-dark px-3 py-2">Heat #{{ lot.heat_number }}</span>
+                </div>
+            </div>
+
+            <div class="card-body p-4">
+                <div class="alert alert-danger d-flex align-items-center mb-4">
+                    <i class="bi bi-shield-slash-fill fs-3 me-3"></i>
+                    <div>
+                        <strong class="d-block">Immediate Shopfloor Quarantine Enforced:</strong>
+                        <span class="small">
+                            Submitting this non-conformance report immediately marks this lot as <strong>"Supplier Quarantine"</strong> and applies a server-side lock. Quarantined stock cannot be issued to work orders under any circumstances.
+                        </span>
+                    </div>
+                </div>
+
+                <div class="p-3 bg-light rounded border mb-4">
+                    <div class="row g-2 small">
+                        <div class="col-sm-6"><strong>Supplier:</strong> {{ lot.supplier_name }}</div>
+                        <div class="col-sm-6"><strong>PO Number:</strong> {{ lot.purchase_order_no }}</div>
+                        <div class="col-sm-6"><strong>Material Grade:</strong> {{ lot.material_grade.code }}</div>
+                        <div class="col-sm-6"><strong>Quantity:</strong> {{ lot.quantity_received }} {{ lot.get_unit_display }}</div>
+                    </div>
+                </div>
+
+                <form method="POST">
+                    {% csrf_token %}
+
+                    <div class="mb-3">
+                        <label for="reason_category" class="form-label fw-bold text-uppercase small text-muted">Primary Non-Conformance Reason *</label>
+                        <select name="reason_category" id="reason_category" class="form-select form-select-lg" required>
+                            {% for code, label in reasons %}
+                                <option value="{{ code }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="disposition" class="form-label fw-bold text-uppercase small text-muted">Immediate Material Disposition *</label>
+                        <select name="disposition" id="disposition" class="form-select form-select-lg" required>
+                            {% for code, label in dispositions %}
+                                <option value="{{ code }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="defect_description" class="form-label fw-bold text-uppercase small text-muted">Defect & Discrepancy Evidence *</label>
+                        <textarea name="defect_description" id="defect_description" rows="3" class="form-control" placeholder="Specify out-of-spec chemical elements, lack of legible MTC, or observed cracks/inclusions..." required></textarea>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="corrective_action_requested" class="form-label fw-bold text-uppercase small text-muted">Supplier Corrective Action Requested (Optional)</label>
+                        <textarea name="corrective_action_requested" id="corrective_action_requested" rows="2" class="form-control" placeholder="e.g. Demand mill 8D root-cause report, issue debit note for material cost..."></textarea>
+                    </div>
+
+                    <div class="d-flex gap-3">
+                        <a href="{% url 'inventory:intake_detail' pk=lot.pk %}" class="btn btn-outline-secondary w-50">Cancel</a>
+                        <button type="submit" class="btn btn-danger w-50 btn-lg shadow-sm">
+                            <i class="bi bi-lock-fill me-2"></i> Quarantine Lot & Issue SNCR
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block title %}Lab Spectro Test - Lot {{ lot.lot_number }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard:index' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'inventory:intake_list' %}">Raw Material & Traceability</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'inventory:intake_detail' pk=lot.pk %}">{{ lot.lot_number }}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Record Lab Analysis</li>
+    </ol>
+</nav>
+
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="card shadow-lg border-0 rounded-3">
+            <div class="card-header bg-dark text-white p-4" style="background-color: #0f2c59 !important;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="badge bg-warning text-dark font-monospace mb-1">{{ lot.lot_number }}</span>
+                        <h4 class="fw-bold mb-0"><i class="bi bi-flask me-2"></i>Incoming Material Laboratory Testing</h4>
+                        <small class="text-white-50">BRD Section 3.2: Chemical Spectrometer & Mechanical Verification</small>
+                    </div>
+                    <span class="badge bg-primary px-3 py-2">Heat #{{ lot.heat_number }}</span>
+                </div>
+            </div>
+
+            <div class="card-body p-4">
+                <div class="alert alert-light border d-flex align-items-center mb-4">
+                    <i class="bi bi-info-circle-fill fs-3 me-3 text-primary"></i>
+                    <div>
+                        <strong>Automated Tolerance Verification Active:</strong>
+                        <div class="small text-muted">
+                            Enter the actual spectrometer readings and tensile/hardness values. The system will automatically compare your entries against the engineering specification limits for <strong>{{ grade.code }}</strong>.
+                        </div>
+                    </div>
+                </div>
+
+                <form method="POST" enctype="multipart/form-data">
+                    {% csrf_token %}
+
+                    <!-- Chemical Spectro Readings -->
+                    <h5 class="fw-bold text-dark border-bottom pb-2 mb-3">
+                        <i class="bi bi-pie-chart-fill text-primary me-2"></i>1. Chemical Spectrometer Analysis (%)
+                    </h5>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4">
+                            <label for="carbon_actual" class="form-label fw-bold small text-muted">Carbon (C) %</label>
+                            <input type="number" step="0.001" name="carbon_actual" id="carbon_actual" class="form-control font-monospace form-control-lg" placeholder="e.g. 0.410" required>
+                            <small class="text-primary fw-semibold">Allowed: {{ grade.carbon_min }}% - {{ grade.carbon_max }}%</small>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="manganese_actual" class="form-label fw-bold small text-muted">Manganese (Mn) %</label>
+                            <input type="number" step="0.001" name="manganese_actual" id="manganese_actual" class="form-control font-monospace form-control-lg" placeholder="e.g. 0.850" required>
+                            <small class="text-primary fw-semibold">Allowed: {{ grade.manganese_min }}% - {{ grade.manganese_max }}%</small>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="silicon_actual" class="form-label fw-bold small text-muted">Silicon (Si) %</label>
+                            <input type="number" step="0.001" name="silicon_actual" id="silicon_actual" class="form-control font-monospace form-control-lg" placeholder="e.g. 0.250" required>
+                            <small class="text-primary fw-semibold">Allowed: {{ grade.silicon_min }}% - {{ grade.silicon_max }}%</small>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="phosphorus_actual" class="form-label fw-bold small text-muted">Phosphorus (P) % (Optional)</label>
+                            <input type="number" step="0.001" name="phosphorus_actual" id="phosphorus_actual" class="form-control font-monospace" placeholder="e.g. 0.020">
+                            <small class="text-muted">Maximum: {{ grade.phosphorus_max }}%</small>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="sulfur_actual" class="form-label fw-bold small text-muted">Sulfur (S) % (Optional)</label>
+                            <input type="number" step="0.001" name="sulfur_actual" id="sulfur_actual" class="form-control font-monospace" placeholder="e.g. 0.015">
+                            <small class="text-muted">Maximum: {{ grade.sulfur_max }}%</small>
+                        </div>
+                    </div>
+
+                    <!-- Mechanical Testing Values -->
+                    <h5 class="fw-bold text-dark border-bottom pb-2 mb-3">
+                        <i class="bi bi-hammer text-primary me-2"></i>2. Mechanical Strength & Hardness Properties
+                    </h5>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4">
+                            <label for="yield_strength_actual" class="form-label fw-bold small text-muted">Yield Strength (MPa)</label>
+                            <input type="number" step="0.1" name="yield_strength_actual" id="yield_strength_actual" class="form-control font-monospace form-control-lg" placeholder="e.g. 480.0">
+                            <small class="text-primary fw-semibold">Minimum: {{ grade.yield_strength_min }} MPa</small>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="tensile_strength_actual" class="form-label fw-bold small text-muted">Tensile Strength (MPa)</label>
+                            <input type="number" step="0.1" name="tensile_strength_actual" id="tensile_strength_actual" class="form-control font-monospace form-control-lg" placeholder="e.g. 710.0">
+                            <small class="text-primary fw-semibold">Minimum: {{ grade.tensile_strength_min }} MPa</small>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="hardness_actual" class="form-label fw-bold small text-muted">Hardness</label>
+                            <input type="number" step="0.1" name="hardness_actual" id="hardness_actual" class="form-control font-monospace form-control-lg" placeholder="e.g. 195.0">
+                            <small class="text-primary fw-semibold">Maximum: {{ grade.hardness_max }}</small>
+                        </div>
+                    </div>
+
+                    <!-- Lab Report File -->
+                    <div class="mb-4">
+                        <label for="lab_report_file" class="form-label fw-bold text-muted small text-uppercase">Attach Spectro Lab Report (Optional PDF)</label>
+                        <input type="file" name="lab_report_file" id="lab_report_file" class="form-control" accept=".pdf,.png,.jpg,.jpeg">
+                    </div>
+
+                    <!-- Submit Buttons -->
+                    <div class="d-flex gap-3">
+                        <a href="{% url 'inventory:intake_detail' pk=lot.pk %}" class="btn btn-outline-secondary w-50">Cancel</a>
+                        <button type="submit" class="btn btn-primary w-50 btn-lg shadow-sm" style="background-color: #0f2c59; border-color: #0f2c59;">
+                            <i class="bi bi-shield-check me-2"></i> Save & Auto-Evaluate Tolerances
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}Shipping Crate QR Label - {{ manifest.manifest_number }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    @media print {
+        nav, .navbar, .action-toolbar, .alert, footer, .btn, .d-print-none {
+            display: none !important;
+        }
+        body {
+            background-color: #fff !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        .crate-label-card {
+            box-shadow: none !important;
+            border: 3px solid #000 !important;
+            width: 100% !important;
+            padding: 15mm !important;
+            margin: 0 !important;
+        }
+    }
+    .crate-label-card {
+        background-color: #fff;
+        border: 3px solid #0f172a;
+        border-radius: 8px;
+        padding: 30px;
+        max-width: 750px;
+        margin: auto;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between mb-4 border-bottom pb-3 action-toolbar">
+    <div>
+        <h2 class="h4 fw-bold mb-1 text-dark">
+            <i class="bi bi-qr-code text-primary me-2"></i>Exterior Shipping Crate QR Label
+        </h2>
+        <span class="text-muted small">
+            BRD Section 11.2 & 11.3: Tamper-proof customer verification label affixed to shipping crate exterior.
+        </span>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'dispatch:dispatch_gate_pass' manifest.id %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Back to Gate Pass
+        </a>
+        <button onclick="window.print()" class="btn btn-primary">
+            <i class="bi bi-printer me-1"></i> Print Label (A4 / 4x6" Crate Tag)
+        </button>
+        <a href="{% url 'dispatch:customer_verify' manifest.qr_verification_token %}" target="_blank" class="btn btn-outline-info text-dark">
+            <i class="bi bi-box-arrow-up-right me-1"></i> Open Customer Verification View
+        </a>
+    </div>
+</div>
+
+<div class="crate-label-card shadow mb-5">
+    <div class="d-flex justify-content-between align-items-center border-bottom border-3 border-dark pb-3 mb-3">
+        <div>
+            <h1 class="h3 fw-bolder mb-0 text-dark tracking-wide">ZAPUZA TECHNOLOGIES LLP</h1>
+            <div class="text-muted small fw-bold">ADVANCED MANUFACTURING & QUALITY SYSTEMS</div>
+        </div>
+        <div class="text-end">
+            <span class="badge bg-dark px-3 py-2 fs-6 font-monospace">CRATE VERIFICATION TAG</span>
+        </div>
+    </div>
+
+    <div class="row align-items-center g-4 my-2">
+        <div class="col-8">
+            <div class="mb-3">
+                <div class="small text-muted text-uppercase fw-bold">Manufactured Component / Part No:</div>
+                <div class="display-6 fw-bold text-dark">{{ part.part_number }}</div>
+                <div class="h5 text-secondary">{{ part.part_name }} ({{ part.revision_level }})</div>
+            </div>
+
+            <div class="row g-2 mb-3">
+                <div class="col-6">
+                    <div class="small text-muted text-uppercase fw-bold">Customer PO Number:</div>
+                    <div class="h5 fw-bold text-primary font-monospace">{{ manifest.customer_po_number }}</div>
+                </div>
+                <div class="col-6">
+                    <div class="small text-muted text-uppercase fw-bold">Batch Quantity:</div>
+                    <div class="h4 fw-bold text-success">{{ manifest.dispatch_quantity }} UNITS</div>
+                </div>
+                <div class="col-6">
+                    <div class="small text-muted text-uppercase fw-bold">Mill Heat Number:</div>
+                    <div class="h5 fw-bold font-monospace text-dark">{{ lot.heat_number }}</div>
+                </div>
+                <div class="col-6">
+                    <div class="small text-muted text-uppercase fw-bold">Job Traveler Barcode:</div>
+                    <div class="h6 fw-bold font-monospace text-muted">{{ traveler.traveler_barcode }}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-4 text-center border-start border-2 ps-3">
+            <div class="border border-3 border-dark p-3 rounded bg-white shadow-sm d-inline-block">
+                <i class="bi bi-qr-code text-dark" style="font-size: 5rem;"></i>
+                <div class="fw-bold mt-2 small text-uppercase">Scan for Digital Birth Certificate</div>
+                <div class="text-muted" style="font-size: 0.65rem;">Tamper-Proof Customer QMS</div>
+            </div>
+            <div class="small font-monospace text-muted mt-2 text-break" style="font-size: 0.65rem;">
+                {{ verify_url }}
+            </div>
+        </div>
+    </div>
+
+    <div class="border-top border-2 border-dark pt-3 mt-3 d-flex justify-content-between align-items-center small">
+        <div>
+            <strong>Certificate of Conformance:</strong> <span class="font-monospace text-primary fw-bold">{{ coc.certificate_number }}</span>
+        </div>
+        <div>
+            <strong>Dispatched To:</strong> {{ manifest.customer_name }}
+        </div>
+        <div>
+            <strong>Cleared Date:</strong> {{ manifest.cleared_at|date:"Y-m-d" }}
+        </div>
+    </div>
+</div>
+{% endblock %}

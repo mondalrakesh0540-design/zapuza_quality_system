@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+
+{% block title %}Material Review Board (MRB) Queue - Zapuza Quality OS{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between mb-4 border-bottom pb-3">
+    <div>
+        <h2 class="h3 fw-bold mb-1 text-dark">
+            <i class="bi bi-shield-shaded text-danger me-2"></i>Material Review Board (MRB) Disposition Queue
+        </h2>
+        <span class="text-muted small">
+            BRD Section 6.3: Formal engineering disposition for non-conforming, failed, and quarantined shopfloor lots.
+        </span>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'inventory:sncr_list' %}" class="btn btn-outline-danger">
+            <i class="bi bi-exclamation-octagon me-1"></i> Supplier SNCR List
+        </a>
+    </div>
+</div>
+
+<!-- Quarantined Job Travelers Table -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center py-2">
+        <h5 class="card-title mb-0 fs-6 fw-bold text-uppercase">
+            <i class="bi bi-x-octagon-fill me-2"></i>1. Quarantined Production Job Travelers ({{ quarantined_travelers.count }})
+        </h5>
+        <span class="badge bg-white text-danger">Digital Rejection Holding Area</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light small text-uppercase">
+                <tr>
+                    <th>Traveler Barcode</th>
+                    <th>Work Order & Part</th>
+                    <th>Heat Traceability</th>
+                    <th>Status</th>
+                    <th class="text-end">MRB Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for trv in quarantined_travelers %}
+                <tr>
+                    <td class="fw-bold font-monospace text-danger">{{ trv.traveler_barcode }}</td>
+                    <td>
+                        <div class="fw-bold text-dark">{{ trv.work_order.part.part_number }}</div>
+                        <div class="small text-muted">{{ trv.work_order.part.part_name }} (WO: {{ trv.work_order.work_order_number }})</div>
+                    </td>
+                    <td>
+                        <span class="badge bg-light text-dark border">Heat #{{ trv.work_order.raw_material_lot.heat_number }}</span>
+                    </td>
+                    <td>
+                        <span class="badge bg-danger">QUARANTINED HOLD</span>
+                    </td>
+                    <td class="text-end">
+                        {% if user.can_mrb_disposition %}
+                        <a href="{% url 'quality:mrb_disposition_traveler' trv.id %}" class="btn btn-sm btn-danger">
+                            <i class="bi bi-pencil-square me-1"></i> Execute MRB Disposition
+                        </a>
+                        {% else %}
+                        <span class="badge bg-secondary">Awaiting MRB Member</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="text-center py-4 text-muted">
+                        <i class="bi bi-check-circle fs-3 text-success d-block mb-1"></i>
+                        No production job travelers currently under quarantine hold.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Quarantined Raw Material Intakes Table -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center py-2">
+        <h5 class="card-title mb-0 fs-6 fw-bold text-uppercase">
+            <i class="bi bi-box-seam me-2 text-warning"></i>2. Quarantined Raw Material Intake Lots ({{ quarantined_lots.count }})
+        </h5>
+        <span class="badge bg-warning text-dark">Supplier Quarantine</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light small text-uppercase">
+                <tr>
+                    <th>Intake Lot ID</th>
+                    <th>Heat Number</th>
+                    <th>Material Grade</th>
+                    <th>Supplier</th>
+                    <th class="text-end">MRB Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for lot in quarantined_lots %}
+                <tr>
+                    <td class="fw-bold font-monospace text-dark">{{ lot.lot_number }}</td>
+                    <td class="font-monospace fw-bold">{{ lot.heat_number }}</td>
+                    <td>{{ lot.material_grade.code }} - {{ lot.material_grade.name }}</td>
+                    <td>{{ lot.supplier_name }}</td>
+                    <td class="text-end">
+                        {% if user.can_mrb_disposition %}
+                        <a href="{% url 'quality:mrb_disposition_lot' lot.id %}" class="btn btn-sm btn-outline-dark">
+                            <i class="bi bi-arrow-return-left me-1"></i> RTV / Scrap Action
+                        </a>
+                        {% else %}
+                        <span class="badge bg-secondary">Awaiting MRB Member</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="text-center py-3 text-muted">
+                        No raw material intake lots currently under supplier quarantine.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Recent MRB Dispositions Log -->
+<div class="card shadow-sm border-0">
+    <div class="card-header bg-light py-2">
+        <h6 class="mb-0 fw-bold text-dark text-uppercase small">Recent MRB Dispositions Log</h6>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle small mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Disposition ID</th>
+                    <th>Target</th>
+                    <th>Disposition Decision</th>
+                    <th>Authorized By</th>
+                    <th>Date</th>
+                    <th class="text-end">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for disp in recent_dispositions %}
+                <tr>
+                    <td class="fw-bold font-monospace">{{ disp.disposition_number }}</td>
+                    <td>
+                        {% if disp.traveler %}
+                            <span class="font-monospace text-primary">{{ disp.traveler.traveler_barcode }}</span>
+                        {% else %}
+                            <span class="font-monospace text-secondary">{{ disp.raw_material_lot.lot_number }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="badge {% if disp.disposition_type == 'REWORK' %}bg-warning text-dark{% elif disp.disposition_type == 'SCRAP' %}bg-danger{% elif disp.disposition_type == 'RTV' %}bg-secondary{% else %}bg-info text-dark{% endif %}">
+                            {{ disp.get_disposition_type_display }}
+                        </span>
+                    </td>
+                    <td>{{ disp.authorized_by.employee_id }} ({{ disp.authorized_by.get_role_display }})</td>
+                    <td>{{ disp.authorized_at|date:"Y-m-d H:i" }}</td>
+                    <td class="text-end">
+                        <a href="{% url 'quality:mrb_detail' disp.id %}" class="btn btn-xs btn-outline-secondary">
+                            View Details
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center py-3 text-muted">No past MRB dispositions recorded.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

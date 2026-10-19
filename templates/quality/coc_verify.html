@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block title %}Certificate Verification - Zapuza Quality OS{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center py-4">
+    <div class="col-lg-8">
+        {% if is_valid %}
+            <!-- Authentic Certificate Result -->
+            <div class="card shadow border-0 overflow-hidden">
+                <div class="{% if coc.status == 'ACTIVE' %}bg-success{% else %}bg-secondary{% endif %} text-white text-center py-4 px-3">
+                    <div class="display-6 mb-2">
+                        {% if coc.status == 'ACTIVE' %}
+                            <i class="bi bi-patch-check-fill"></i>
+                        {% else %}
+                            <i class="bi bi-exclamation-circle-fill"></i>
+                        {% endif %}
+                    </div>
+                    <h2 class="h3 fw-bold mb-1">
+                        {% if coc.status == 'ACTIVE' %}
+                            AUTHENTIC CERTIFICATE OF CONFORMANCE
+                        {% else %}
+                            SUPERSEDED CERTIFICATE
+                        {% endif %}
+                    </h2>
+                    <p class="mb-0 small text-white-50">
+                        Verified by Zapuza Technologies LLP &bull; Digital Quality Authentication Network
+                    </p>
+                </div>
+
+                <div class="card-body p-4">
+                    {% if coc.status == 'SUPERSEDED' %}
+                    <div class="alert alert-warning mb-4" role="alert">
+                        <strong>Notice:</strong> This certificate version (v{{ coc.version }}) was superseded by an engineering reissue.
+                        {% if coc.superseded_by %}
+                            A newer active version (v{{ coc.superseded_by.version }}) exists.
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+                    <h5 class="fw-bold text-dark border-bottom pb-2 mb-3">
+                        <i class="bi bi-award me-2 text-primary"></i>Verified Certificate Details
+                    </h5>
+
+                    <div class="table-responsive mb-4">
+                        <table class="table table-bordered table-striped small mb-0">
+                            <tbody>
+                                <tr>
+                                    <th class="w-35 bg-light">Certificate Number:</th>
+                                    <td class="fw-bold font-monospace text-primary">{{ coc.certificate_number }} (v{{ coc.version }})</td>
+                                </tr>
+                                <tr>
+                                    <th class="bg-light">Current Status:</th>
+                                    <td>
+                                        {% if coc.status == 'ACTIVE' %}
+                                            <span class="badge bg-success">ACTIVE & VALID</span>
+                                        {% elif coc.status == 'SUPERSEDED' %}
+                                            <span class="badge bg-secondary">SUPERSEDED BY REISSUE</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">REVOKED</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th class="bg-light">Manufactured Part:</th>
+                                    <td class="fw-bold">{{ part.part_number }} - {{ part.part_name }}</td>
+                                </tr>
+                                <tr>
+                                    <th class="bg-light">Engineering Drawing:</th>
+                                    <td>{{ part.drawing_number }} ({{ part.revision_level }})</td>
+                                </tr>
+                                <tr>
+                                    <th class="bg-light">Work Order & Traveler:</th>
+                                    <td>{{ work_order.work_order_number }} &bull; <span class="font-monospace text-muted">{{ traveler.traveler_barcode }}</span></td>
+                                </tr>
+                                <tr>
+                                    <th class="bg-light">Material Grade:</th>
+                                    <td>{{ lot.material_grade.code }} ({{ lot.material_grade.name }})</td>
+                                </tr>
+                                <tr>
+                                    <th class="bg-light">Mill Heat / Cast Number:</th>
+                                    <td class="fw-bold font-monospace text-dark">{{ lot.heat_number }}</td>
+                                </tr>
+                                <tr>
+                                    <th class="bg-light">Mill Test Certificate (MTC):</th>
+                                    <td><span class="text-success fw-bold"><i class="bi bi-check-circle-fill me-1"></i>Verified & Archived</span></td>
+                                </tr>
+                                <tr>
+                                    <th class="bg-light">Final Pre-Dispatch Inspection (PDI):</th>
+                                    <td><span class="text-success fw-bold"><i class="bi bi-check-circle-fill me-1"></i>Quality Approved (100% In-Tolerance)</span></td>
+                                </tr>
+                                <tr>
+                                    <th class="bg-light">Issuing Quality Authority:</th>
+                                    <td>Employee ID: <strong>{{ coc.issued_by.employee_id }}</strong> ({{ coc.issued_by.get_role_display }})</td>
+                                </tr>
+                                <tr>
+                                    <th class="bg-light">Official Issuance Timestamp:</th>
+                                    <td>{{ coc.issued_at|date:"Y-m-d H:i:s" }} UTC</td>
+                                </tr>
+                                {% if coc.pdf_sha256_hash %}
+                                <tr>
+                                    <th class="bg-light">Document Integrity (SHA-256):</th>
+                                    <td class="font-monospace text-muted small text-break">{{ coc.pdf_sha256_hash }}</td>
+                                </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="p-3 bg-light rounded border text-muted small">
+                        <i class="bi bi-shield-lock me-1 text-primary"></i>
+                        <strong>Privacy & Security Statement:</strong> Proprietary shopfloor tool calibrations, internal supplier commercial pricing,
+                        and system user audit logs are shielded and protected in accordance with industrial confidentiality protocols.
+                    </div>
+                </div>
+            </div>
+        {% else %}
+            <!-- Invalid / Unknown Token Result -->
+            <div class="card shadow border-danger overflow-hidden">
+                <div class="bg-danger text-white text-center py-4 px-3">
+                    <div class="display-6 mb-2"><i class="bi bi-shield-x"></i></div>
+                    <h2 class="h3 fw-bold mb-1">UNVERIFIED CERTIFICATE</h2>
+                    <p class="mb-0 small text-white-50">
+                        Security Alert &bull; No Authentic Match Found
+                    </p>
+                </div>
+                <div class="card-body p-4 text-center">
+                    <p class="text-muted mb-4">
+                        The requested verification token <code class="font-monospace text-danger">{{ token }}</code> does not correspond to any valid,
+                        approved Certificate of Conformance issued by the Zapuza Quality Operations System.
+                    </p>
+                    <div class="alert alert-warning text-start small mb-4">
+                        <strong>Possible Causes:</strong>
+                        <ul class="mb-0 mt-1">
+                            <li>The QR code or verification link is incomplete or mistyped.</li>
+                            <li>The certificate has not completed formal quality approval or was revoked.</li>
+                            <li>The document was not produced by an authorized Zapuza facility.</li>
+                        </ul>
+                    </div>
+                    <a href="/" class="btn btn-outline-secondary">
+                        <i class="bi bi-house me-1"></i> Return to System Home
+                    </a>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
