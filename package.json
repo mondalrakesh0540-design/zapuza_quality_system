@@ -1,12 +1,10 @@
 {
-  "name": "autoverse-workspace",
+  "name": "zapuza-quality-system",
   "version": "1.0.0",
   "private": true,
+  "description": "Zapuza Factory Operations & Quality Control System",
   "scripts": {
-    "dev": "npm --prefix autoverse run dev",
-    "build": "npm --prefix autoverse run build",
-    "start": "npm --prefix autoverse start",
-    "test": "npm --prefix autoverse test",
-    "install:app": "npm --prefix autoverse install"
+    "autoverse:dev": "npm --prefix autoverse run dev",
+    "autoverse:build": "npm --prefix autoverse run build"
   }
 }
